@@ -188,9 +188,35 @@ Com `--log-level DEBUG`, cada pacote mostra os bytes reais enviados ou
 recebidos:
 
 ```text
-TX packet image_id=1 fragment=3/8 flags=0x00 resolution=32x32 levels=16 payload_bytes=64 wire_bytes=85 overhead_bytes=21 raw=...
-RX packet image_id=1 fragment=3/8 flags=0x00 resolution=32x32 levels=16 payload_bytes=64 wire_bytes=85 overhead_bytes=21 raw=...
-RX summary packets=8 payload_bytes=512 wire_bytes=680 overhead_bytes=168 invalid_packets=0 expected_packets=8
+TX msg=3/8 message_bytes=85
+  image_id=1
+  flags=0x00
+  resolution=32x32
+  levels=16
+  payload_bytes=64
+  overhead_bytes=21
+  address=127.0.0.1:9000
+  raw:
+    4d 4d 01 01 01 00 00 01 00 02 00 08 00 20 00 20
+    00 10 40 ...
+RX msg=3/8 message_bytes=85
+  image_id=1
+  flags=0x00
+  resolution=32x32
+  levels=16
+  payload_bytes=64
+  overhead_bytes=21
+  address=127.0.0.1:58533
+  raw:
+    4d 4d 01 01 01 00 00 01 00 02 00 08 00 20 00 20
+    00 10 40 ...
+RX summary
+  messages=8
+  payload_bytes=512
+  message_bytes_total=680
+  overhead_bytes=168
+  invalid_packets=0
+  expected_messages=8
 ```
 
 O valor `3/8` significa que o pacote atual e o terceiro de oito. O contador

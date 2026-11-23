@@ -43,6 +43,17 @@ def parse_resolution(value: str) -> tuple[int, int]:
     return width, height
 
 
+def _format_hex(raw: bytes, *, bytes_per_line: int = 16) -> str:
+    """Format wire bytes in short lines for readable debug logs."""
+
+    if not raw:
+        return "    <empty>"
+    return "\n".join(
+        f"    {raw[offset : offset + bytes_per_line].hex(' ')}"
+        for offset in range(0, len(raw), bytes_per_line)
+    )
+
+
 def configure_logging(level: str, log_file: str | None = None) -> None:
     """Configure console logging and an optional file sink."""
 
@@ -69,24 +80,31 @@ def log_packet(
 ) -> None:
     """Log packet metadata and the exact bytes sent over UDP."""
 
-    location = f" address={address[0]}:{address[1]}" if address else ""
+    location = f"{address[0]}:{address[1]}" if address else "local"
+    raw_hex = _format_hex(raw)
     logger.debug(
-        "%s packet image_id=%d fragment=%d/%d flags=0x%02x "
-        "resolution=%dx%d levels=%d payload_bytes=%d wire_bytes=%d "
-        "overhead_bytes=%d%s raw=%s",
+        "%s msg=%d/%d message_bytes=%d\n"
+        "  image_id=%d\n"
+        "  flags=0x%02x\n"
+        "  resolution=%dx%d\n"
+        "  levels=%d\n"
+        "  payload_bytes=%d\n"
+        "  overhead_bytes=%d\n"
+        "  address=%s\n"
+        "  raw:\n%s",
         direction,
-        packet.image_id,
         packet.fragment_number + 1,
         packet.total_fragments,
+        len(raw),
+        packet.image_id,
         packet.flags,
         packet.metadata.width,
         packet.metadata.height,
         packet.metadata.levels,
         len(packet.payload),
-        len(raw),
         len(raw) - len(packet.payload),
         location,
-        raw.hex(" "),
+        raw_hex,
     )
 
 
@@ -99,10 +117,14 @@ def log_summary(
 ) -> None:
     """Log aggregate transmission counters."""
 
-    expected = f" expected_packets={expected_packets}" if expected_packets else ""
+    expected = f"\n  expected_messages={expected_packets}" if expected_packets else ""
     logger.info(
-        "%s summary packets=%d payload_bytes=%d wire_bytes=%d "
-        "overhead_bytes=%d invalid_packets=%d%s",
+        "%s summary\n"
+        "  messages=%d\n"
+        "  payload_bytes=%d\n"
+        "  message_bytes_total=%d\n"
+        "  overhead_bytes=%d\n"
+        "  invalid_packets=%d%s",
         direction,
         stats.packets,
         stats.payload_bytes,

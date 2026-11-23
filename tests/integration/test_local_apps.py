@@ -95,8 +95,12 @@ class LocalApplicationsTests(unittest.TestCase):
             self.assertEqual(transmitter.returncode, 0, transmitter.stderr)
             self.assertEqual(receiver.returncode, 0, receiver_output)
             self.assertTrue(output_path.exists())
-            self.assertIn("raw=", transmitter.stderr)
+            self.assertIn("TX msg=1/8 message_bytes=24", transmitter.stderr)
+            self.assertIn("TX msg=8/8", transmitter.stderr)
+            self.assertIn("raw:\n", transmitter.stderr)
+            self.assertIn("RX msg=1/8 message_bytes=24", receiver_output)
             self.assertIn("messages=8", receiver_output)
+            self.assertIn("message_bytes_total=192", receiver_output)
 
             with Image.open(output_path) as received:
                 self.assertEqual(received.mode, "L")
