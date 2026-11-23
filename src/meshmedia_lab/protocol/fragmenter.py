@@ -2,7 +2,9 @@
 
 from dataclasses import dataclass
 
-from .packet import Packet, PacketError
+from meshmedia_lab.media import ImageMetadata
+
+from .packet import FLAG_FIRST_FRAGMENT, FLAG_LAST_FRAGMENT, Packet, PacketError
 
 
 class FragmentationError(ValueError):
@@ -19,7 +21,13 @@ class Fragmenter:
         if not 1 <= self.max_payload_size <= 0xFF:
             raise FragmentationError("max_payload_size must be between 1 and 255")
 
-    def fragment(self, data: bytes, *, image_id: int) -> tuple[Packet, ...]:
+    def fragment(
+        self,
+        data: bytes,
+        *,
+        image_id: int,
+        metadata: ImageMetadata,
+    ) -> tuple[Packet, ...]:
         data = bytes(data)
         total_fragments = max(1, (len(data) + self.max_payload_size - 1) // self.max_payload_size)
         if total_fragments > 0xFFFF:
@@ -27,12 +35,19 @@ class Fragmenter:
 
         packets = []
         for fragment_number, offset in enumerate(range(0, len(data), self.max_payload_size)):
+            flags = 0
+            if fragment_number == 0:
+                flags |= FLAG_FIRST_FRAGMENT
+            if fragment_number == total_fragments - 1:
+                flags |= FLAG_LAST_FRAGMENT
             packets.append(
                 Packet(
+                    metadata=metadata,
                     image_id=image_id,
                     fragment_number=fragment_number,
                     total_fragments=total_fragments,
                     payload=data[offset : offset + self.max_payload_size],
+                    flags=flags,
                 )
             )
 
@@ -40,10 +55,12 @@ class Fragmenter:
             try:
                 packets.append(
                     Packet(
+                        metadata=metadata,
                         image_id=image_id,
                         fragment_number=0,
                         total_fragments=1,
                         payload=b"",
+                        flags=FLAG_FIRST_FRAGMENT | FLAG_LAST_FRAGMENT,
                     )
                 )
             except PacketError as error:

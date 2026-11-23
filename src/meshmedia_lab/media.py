@@ -1,0 +1,33 @@
+"""Shared media metadata used by codecs and transport packets."""
+
+from dataclasses import dataclass
+
+PROTOCOL_VERSION = 1
+MEDIA_TYPE_IMAGE = 0x01
+CODEC_GRAYSCALE_PACKED = 0x01
+
+
+@dataclass(frozen=True, slots=True)
+class ImageMetadata:
+    """Parameters required by a receiver to decode an image payload."""
+
+    width: int
+    height: int
+    levels: int
+    version: int = PROTOCOL_VERSION
+    media_type: int = MEDIA_TYPE_IMAGE
+    codec: int = CODEC_GRAYSCALE_PACKED
+
+    def __post_init__(self) -> None:
+        if not 1 <= self.width <= 0xFFFF:
+            raise ValueError("width must fit in 2 bytes")
+        if not 1 <= self.height <= 0xFFFF:
+            raise ValueError("height must fit in 2 bytes")
+        if not 2 <= self.levels <= 256 or self.levels & (self.levels - 1):
+            raise ValueError("levels must be a power of two between 2 and 256")
+        if not 0 <= self.version <= 0xFF:
+            raise ValueError("version must fit in 1 byte")
+        if not 0 <= self.media_type <= 0xFF:
+            raise ValueError("media_type must fit in 1 byte")
+        if not 0 <= self.codec <= 0xFF:
+            raise ValueError("codec must fit in 1 byte")

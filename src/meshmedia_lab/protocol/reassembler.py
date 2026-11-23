@@ -1,6 +1,7 @@
 """Collect packet fragments and rebuild the encoded payload."""
 
 from .packet import Packet
+from meshmedia_lab.media import ImageMetadata
 
 
 class ReassemblyError(ValueError):
@@ -13,6 +14,7 @@ class Reassembler:
     def __init__(self) -> None:
         self._image_id: int | None = None
         self._total_fragments: int | None = None
+        self._metadata: ImageMetadata | None = None
         self._fragments: dict[int, bytes] = {}
 
     @property
@@ -32,14 +34,21 @@ class Reassembler:
             if number not in self._fragments
         )
 
+    @property
+    def metadata(self) -> ImageMetadata | None:
+        return self._metadata
+
     def add(self, packet: Packet) -> None:
         if self._image_id is None:
             self._image_id = packet.image_id
             self._total_fragments = packet.total_fragments
+            self._metadata = packet.metadata
         elif packet.image_id != self._image_id:
             raise ReassemblyError("packet belongs to another image")
         elif packet.total_fragments != self._total_fragments:
             raise ReassemblyError("packet has an inconsistent fragment count")
+        elif packet.metadata != self._metadata:
+            raise ReassemblyError("packet has inconsistent image metadata")
 
         previous = self._fragments.get(packet.fragment_number)
         if previous is not None and previous != packet.payload:
