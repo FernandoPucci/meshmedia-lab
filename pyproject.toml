@@ -17,6 +17,9 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.6",
 ]
+local = [
+    "Pillow>=9.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

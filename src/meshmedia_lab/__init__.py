@@ -3,5 +3,6 @@
 __version__ = "0.1.0"
 
 from .application.pipeline import ImagePipeline, TransmissionResult
+from .media import ImageMetadata
 
-__all__ = ["ImagePipeline", "TransmissionResult", "__version__"]
+__all__ = ["ImageMetadata", "ImagePipeline", "TransmissionResult", "__version__"]

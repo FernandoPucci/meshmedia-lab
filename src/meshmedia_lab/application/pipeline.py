@@ -45,7 +45,11 @@ class ImagePipeline:
         channel: ChannelSimulator | None = None,
     ) -> TransmissionResult:
         encoded = self.encoder.encode(pixels)
-        packets = self.fragmenter.fragment(encoded.data, image_id=image_id)
+        packets = self.fragmenter.fragment(
+            encoded.data,
+            image_id=image_id,
+            metadata=encoded.metadata,
+        )
         raw_packets = tuple(packet.to_bytes() for packet in packets)
         delivered = channel.transmit(raw_packets) if channel else raw_packets
 
@@ -65,10 +69,13 @@ class ImagePipeline:
             missing = ", ".join(str(number) for number in reassembler.missing_fragments)
             raise TransmissionError(f"incomplete transmission; missing fragments: {missing}")
 
+        if reassembler.metadata is None:
+            raise TransmissionError("transmission completed without image metadata")
+
         reconstructed = EncodedImage(
-            width=encoded.width,
-            height=encoded.height,
-            levels=encoded.levels,
+            width=reassembler.metadata.width,
+            height=reassembler.metadata.height,
+            levels=reassembler.metadata.levels,
             data=reassembler.assemble(),
         )
         image = self.decoder.decode(reconstructed)
