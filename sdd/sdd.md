@@ -1,9 +1,42 @@
 # MeshMedia Lab
-## Protocolo experimental de transmissão de imagens e áudio sobre redes MeshCore
+## MM1 — MeshMedia v1: protocolo experimental de transmissão de imagens e áudio sobre redes MeshCore
 
 - **Status:** Proposta inicial / fase de exploração
 - **Abordagem:** Specification-Driven Development (SDD)
 - **Objetivo:** Desenvolver um protocolo eficiente para transmissão de imagens e, futuramente, áudio através de redes MeshCore/LoRa.
+- **Nome do protocolo:** MM1 (MeshMedia v1)
+- **Revisão do SDD:** 0.2.0-draft
+- **Versão da implementação de referência:** 0.1.0
+- **Versão do protocolo binário:** 1
+- **Conformidade:** Parcial
+- **Matriz de implementação:** [`docs/implementation-status.md`](../docs/implementation-status.md)
+- **Documentação de controle de erros:** [`docs/error-control.md`](../docs/error-control.md)
+
+# 0. Versionamento e conformidade
+
+O SDD e uma especificacao de evolucao. Ele pode registrar uma capacidade
+proposta antes que exista codigo, mas cada capacidade deve declarar seu estado
+de implementacao na [matriz de rastreabilidade](../docs/implementation-status.md).
+
+O projeto usa tres identificadores independentes:
+
+| Identificador | Funcao |
+|---|---|
+| Versao do software | Evolucao do pacote Python e de sua API. Atualmente `0.1.0`. |
+| Versao do protocolo | Compatibilidade do formato binario transportado. Atualmente `1`. |
+| Revisao do SDD | Evolucao dos requisitos, decisoes e propostas. Atualmente `0.2.0-draft`. |
+
+Uma alteracao editorial nao altera a versao do software nem a versao do
+protocolo. Uma alteracao incompativel no formato ou no significado dos pacotes
+exige uma nova versao do protocolo. A versao do SDD pode avancar antes do
+software, desde que a diferenca esteja registrada na matriz.
+
+Os termos usados neste documento sao:
+
+- **Implementado:** codigo, testes e documentacao estao coerentes.
+- **Parcial:** existe codigo, mas parte do requisito ainda falta.
+- **Proposto:** existe um desenho tecnico, mas nao existe implementacao.
+- **Planejado:** trabalho futuro ainda sem desenho fechado.
 
 ---
 
@@ -345,6 +378,15 @@ O cabeçalho deverá ser otimizado depois que conhecermos as limitações reais 
 
 # 8. CRC — Cyclic Redundancy Check
 
+**Status atual: IMPLEMENTADO no protocolo versao 1.**
+
+O codigo usa CRC-16/CCITT-FALSE por pacote. O valor e calculado sobre o
+cabecalho e o payload, anexado em dois bytes e validado antes da reassemblagem.
+O vetor `123456789` produz `0x29B1`. A implementacao esta em
+`src/meshmedia_lab/protocol/crc.py` e o teste de referencia esta em
+`tests/unit/test_protocol.py`. A parametrizacao completa e discutida em
+[`docs/error-control.md`](../docs/error-control.md).
+
 CRC significa Cyclic Redundancy Check.
 
 É um mecanismo matemático utilizado para detectar corrupção de dados durante a transmissão.
@@ -391,13 +433,20 @@ Se o resultado for diferente:
 - O fragmento deverá ser descartado.
 - O sistema poderá solicitar retransmissão, se essa funcionalidade existir.
 
-CRC deverá ser implementado e testado por fragmento.
+O CRC ja esta implementado e testado por pacote. O requisito de valida-lo por
+fragmento permanece parte do comportamento do protocolo inicial.
 
 Isso permite detectar corrupção sem precisar invalidar necessariamente toda a imagem.
 
 ---
 
 # 9. Recuperação de erros
+
+**Status atual: FEC e retransmissao ainda nao implementados.**
+
+O MVP atual descarta pacotes invalidos e exige todos os fragmentos para concluir
+a imagem. As subsecoes seguintes descrevem alternativas de projeto e nao devem
+ser lidas como funcionalidades disponiveis.
 
 Existem diferentes estratégias para lidar com perda ou corrupção de pacotes.
 
@@ -464,6 +513,8 @@ Desvantagens:
 
 ## 9.3 FEC — Forward Error Correction
 
+**Status atual: PROPOSTO; sem implementacao no protocolo versao 1.**
+
 FEC significa Forward Error Correction.
 
 É uma técnica que introduz redundância nos dados transmitidos para permitir que o receptor recupere informações perdidas ou corrompidas sem solicitar retransmissão.
@@ -488,6 +539,8 @@ Dependendo do algoritmo utilizado, alguns dados poderão ser recuperados mesmo q
 ---
 
 # 10. Reed-Solomon
+
+**Status atual: PROPOSTO para experimento; encoder e decoder ainda nao existem.**
 
 Uma técnica de FEC que merece investigação é Reed-Solomon.
 
@@ -523,6 +576,27 @@ Precisaremos experimentar:
 - Tempo de decodificação.
 - Impacto no tamanho total da transmissão.
 
+### 10.1 Matriz experimental inicial
+
+As configuracoes abaixo sao pontos de partida para afericao, nao parametros
+definitivos do protocolo. Considerando simbolos em `GF(2^8)`:
+
+| Configuracao | Dados | Redundancia | Taxa `k/n` | Erasures | Erros desconhecidos |
+|---|---:|---:|---:|---:|---:|
+| RS(32,28) | 28 simbolos | 4 simbolos | 87,5% | 4 | 2 |
+| RS(32,24) | 24 simbolos | 8 simbolos | 75,0% | 8 | 4 |
+| RS(32,20) | 20 simbolos | 12 simbolos | 62,5% | 12 | 6 |
+
+Os limites seguem `2e + s <= n-k`, onde `e` representa erros desconhecidos e
+`s` representa erasures conhecidas. A matriz precisa ser repetida com tamanho
+de simbolo, tamanho de bloco, preenchimento e transporte explicitamente
+definidos. Um simbolo pode ser um byte ou um vetor fixo de bytes; os dois casos
+nao possuem o mesmo custo de airtime.
+
+O plano de afericao completo esta em
+[`docs/error-control.md`](../docs/error-control.md), com referencias a Reed e
+Solomon e ao RFC 5510 em [`docs/references.md`](../docs/references.md).
+
 Reed-Solomon poderá ser especialmente interessante em canais onde retransmissões são caras.
 
 Entretanto, não devemos assumir que FEC será sempre melhor.
@@ -537,6 +611,12 @@ Precisaremos comparar:
 ---
 
 # 11. Simulador de canal
+
+**Status atual: PARCIAL.**
+
+O simulador implementado suporta perda independente por pacote, corrupcao de um
+bit, limite de payload e sementes reproduziveis. Perda em rajadas, latencia,
+jitter, duplicacao e interrupcao permanecem planejados.
 
 Antes de utilizar rádios reais, devemos desenvolver um canal de comunicação simulado.
 
@@ -593,9 +673,18 @@ Exemplos:
 
 O simulador permitirá comparar objetivamente os resultados.
 
+Os testes 001 a 005 sao cenarios planejados. FEC, retransmissao seletiva,
+latencia e perda em rajadas ainda nao podem ser executados pelo simulador atual.
+
 ---
 
 # 12. Métricas
+
+**Status atual: PARCIAL.**
+
+O MVP local registra tamanho codificado, quantidade de pacotes enviados e
+quantidade recebida. Overhead detalhado, airtime, recuperacao FEC, latencia e
+qualidade comparativa ainda fazem parte do plano experimental.
 
 Devemos registrar métricas em todos os testes.
 
@@ -881,6 +970,14 @@ Também poderá existir uma aplicação integrada com ambos os modos.
 
 # 17. Integração futura com MeshCore
 
+**Status atual: PLANEJADA; nenhum adaptador MeshCore esta implementado.**
+
+Os limites e formatos do transporte externo estao documentados em
+[`docs/meshcore-reference.md`](../docs/meshcore-reference.md), com referencias
+para a documentacao e o codigo oficiais do MeshCore. O documento distingue o
+MTU bruto de 255 bytes, o payload MeshCore de ate 184 bytes e o limite de dados
+de aplicacao de `GRP_DATA` de 165 bytes.
+
 Não devemos começar modificando o firmware MeshCore.
 
 Primeiro, desenvolveremos um protocolo independente.
@@ -963,9 +1060,9 @@ LoRa
 
 # 18. Protocolo experimental
 
-## Nome provisório
+## Nome do protocolo
 
-MMP — Mesh Media Protocol
+MM1 — MeshMedia v1
 
 O protocolo deverá ser projetado para transportar mídia sobre canais com capacidade extremamente limitada.
 
@@ -1027,9 +1124,9 @@ Possíveis flags:
 
 # 20. Fases de desenvolvimento
 
-## Fase 1 — Transmissão perfeita
+## Fase 1 — Transmissão perfeita (IMPLEMENTADA NO MVP LOCAL)
 
-Implementar:
+Fluxo implementado:
 
 ```text
 Encoder
@@ -1057,7 +1154,7 @@ Objetivo:
 
 Garantir que uma imagem codificada possa ser transmitida e reconstruída corretamente.
 
-## Fase 2 — Limites de payload
+## Fase 2 — Limites de payload (PARCIAL)
 
 Testar diferentes tamanhos:
 
@@ -1074,9 +1171,9 @@ Medir:
 - Tempo de processamento.
 - Tamanho total.
 
-## Fase 3 — CRC
+## Fase 3 — CRC (IMPLEMENTADA)
 
-Implementar CRC por fragmento.
+CRC por pacote implementado no formato binario atual.
 
 Testar:
 
@@ -1092,7 +1189,7 @@ Verificar:
 - Descarte.
 - Recuperação.
 
-## Fase 4 — Perda de pacotes
+## Fase 4 — Perda de pacotes (PARCIAL)
 
 Simular:
 
@@ -1104,11 +1201,16 @@ Simular:
 
 Avaliar a reconstrução da imagem.
 
-## Fase 5 — Reed-Solomon
+## Fase 5 — Reed-Solomon (PLANEJADA; NAO INICIADA)
 
 Implementar FEC.
 
 Experimentar diferentes configurações.
+
+Comecar por RS(32,28), RS(32,24) e RS(32,20), conforme a matriz da secao
+10.1. Medir perdas aleatorias de 5%, 10%, 20% e 30%, perdas em rajada,
+corrupcao separada, overhead, airtime, taxa de recuperacao e tempo de
+codificacao e decodificacao.
 
 Comparar:
 
@@ -1125,7 +1227,7 @@ Medir:
 - Qualidade.
 - Eficiência.
 
-## Fase 6 — Retransmissão seletiva
+## Fase 6 — Retransmissão seletiva (PLANEJADA; NAO INICIADA)
 
 Implementar:
 
@@ -1138,7 +1240,7 @@ Implementar:
 
 Comparar retransmissão com FEC.
 
-## Fase 7 — Codec
+## Fase 7 — Codec (PARCIAL)
 
 Experimentar:
 
@@ -1152,7 +1254,7 @@ Experimentar:
 - Compressão.
 - JPEG reduzido como baseline.
 
-## Fase 8 — Transmissão progressiva
+## Fase 8 — Transmissão progressiva (PLANEJADA; NAO INICIADA)
 
 Implementar refinamento progressivo.
 
@@ -1173,7 +1275,7 @@ Possível sequência:
 
 Ou outra estratégia de refinamento.
 
-## Fase 9 — Integração MeshCore
+## Fase 9 — Integração MeshCore (PLANEJADA; NAO INICIADA)
 
 Desenvolver Transport Adapter.
 
@@ -1189,7 +1291,7 @@ Testar:
 - Perda.
 - Latência.
 
-## Fase 10 — Firmware customizado
+## Fase 10 — Firmware customizado (PLANEJADA; NAO INICIADA)
 
 Somente depois de validar o protocolo.
 

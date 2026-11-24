@@ -1,10 +1,173 @@
 # MeshMedia Lab
 
-Laboratorio experimental de codecs e protocolos para transmissao de imagens e
-audio sobre redes MeshCore/LoRa.
+![MeshMedia Lab - transmissao de midia em redes LoRa e MeshCore](assets/MeshMediaLab.png)
+
+O MeshMedia Lab e uma iniciativa brasileira, cooperativa e de codigo aberto.
+
+O projeto é construido de forma colaborativa para que ideias, experimentos,
+referencias e decisoes tecnicas possam ser compartilhados e revisados pela
+comunidade.
+
+Ferramentas de inteligencia artificial participam como apoio a pesquisa,
+documentacao, analise e desenvolvimento. A IA nao substitui a revisao humana:
+as decisoes de arquitetura, os experimentos, os testes e a responsabilidade
+pelo codigo permanecem com os colaboradores do projeto.
+
+## MM1 - MeshMedia v1
+
+O MM1 (MeshMedia v1) e o protocolo experimental que estamos criando para
+transportar representacoes compactas de midia em redes com pouca largura de
+banda, payload reduzido e alto custo de airtime, como redes MeshCore/LoRa.
+
+O objetivo nao e simplesmente enviar um arquivo JPEG ou um audio convencional
+atraves do radio. Arquivos tradicionais normalmente assumem uma rede com mais
+capacidade, menor perda e retransmissao barata. Em uma rede mesh de baixa taxa,
+uma imagem pequena ainda pode ocupar muitos pacotes, consumir o canal por muito
+tempo e falhar completamente se poucos fragmentos forem perdidos.
+
+O MM1 tenta resolver esse problema tratando a midia, desde a origem, como uma
+representacao adequada ao canal:
+
+```mermaid
+flowchart LR
+    A[Imagem original] --> B[Representacao compacta<br/>resize, grayscale, quantizacao e empacotamento]
+    B --> C[Fragmentos MM1<br/>metadados, sequenciamento, payload e integridade]
+    C --> D[Transporte substituivel]
+    D --> E[Validacao e reassemblagem]
+    E --> F[Reconstrucao no receptor]
+
+    D --> D1[UDP local atual]
+    D --> D2[MeshCore/LoRa futuro]
+
+    classDef current fill:#dbeafe,stroke:#2563eb,color:#111827
+    classDef future fill:#fef3c7,stroke:#d97706,color:#111827
+    class A,B,C,E,F current
+    class D1 current
+    class D2 future
+```
+
+### O que o MM1 é?
+
+- Uma camada de protocolo para transportar midia fragmentada.
+- Uma forma de levar metadados suficientes para o receptor decodificar a
+  representacao sem compartilhar configuracoes escondidas com o transmissor.
+- Um laboratorio para medir bytes uteis, overhead, quantidade de pacotes,
+  perdas, recuperacao e airtime.
+- Uma arquitetura que separa codec, protocolo, simulacao de canal e transporte.
+
+### MM1 dentro do pacote MeshCore
+
+O MM1 nao substitui o pacote MeshCore. Ele ocupa o espaco de dados de um
+payload MeshCore, que por sua vez e transportado dentro do frame de radio:
+
+```mermaid
+flowchart TB
+    subgraph MM1[Pacote MM1]
+        MH[Cabecalho MM1<br/>19 bytes]
+        MP[Payload MM1<br/>P bytes]
+        MC[CRC-16<br/>2 bytes]
+        MH --> MP --> MC
+    end
+
+    subgraph GD[Payload MeshCore GRP_DATA]
+        CH[Channel hash]
+        GM[MAC e ciphertext MeshCore]
+        GDAT[data_type + data_len + dados MM1]
+        CH --> GM --> GDAT
+    end
+
+    subgraph MC1[Pacote MeshCore v1]
+        H[Header<br/>1 byte]
+        TC[Transport codes<br/>0 ou 4 bytes]
+        PL[Path length + path<br/>1 + 0..64 bytes]
+        PAY[Payload<br/>ate 184 bytes]
+        H --> TC --> PL --> PAY
+    end
+
+    subgraph RF[Frame de radio]
+        MTU[MAX_TRANS_UNIT<br/>255 bytes]
+    end
+
+    MC --> MM1_BYTES[Pacote MM1 completo<br/>P + 21 bytes]
+    MM1_BYTES --> GDAT
+    GDAT --> PAY
+    PAY --> MTU
+
+    classDef mm1 fill:#dbeafe,stroke:#2563eb,color:#111827
+    classDef mesh fill:#dcfce7,stroke:#16a34a,color:#111827
+    classDef radio fill:#fef3c7,stroke:#d97706,color:#111827
+    class MH,MP,MC,MM1_BYTES mm1
+    class CH,GM,GDAT,H,TC,PL,PAY mesh
+    class MTU radio
+```
+
+Para `GRP_DATA`, o limite conservador do dado de aplicacao e 165 bytes. Como o
+pacote MM1 atual possui `P + 21` bytes, o payload MM1 precisa respeitar:
+
+```text
+P + 21 <= 165
+P <= 144 bytes
+```
+
+O valor padrao atual do MM1 e `P=64`, portanto um pacote MM1 ocupa 85 bytes e
+comporta-se dentro desse limite. O limite de 255 bytes do frame MeshCore nao e
+o mesmo que o payload disponivel para o MM1.
+
+Os detalhes do formato, dos tipos de payload MeshCore, dos caminhos e das
+alternativas `GRP_DATA`/`RAW_CUSTOM` estao em
+[`docs/meshcore-reference.md`](docs/meshcore-reference.md).
+
+### O que o MM1 nao e
+
+- Nao e um substituto do MeshCore nem uma implementacao de radio.
+- Nao e apenas um codec de imagem.
+- Nao promete transmitir fotografias convencionais com qualidade original.
+- Nao considera FEC, Reed-Solomon ou retransmissao como funcionalidades prontas.
+
+### O problema de engenharia
+
+O projeto precisa encontrar um equilibrio entre quatro custos que normalmente
+ficam escondidos quando usamos uma rede convencional:
+
+| Custo | Pergunta do MM1 |
+|---|---|
+| Representacao | Qual imagem minima ainda transmite informacao util? |
+| Fragmentacao | Quantos bytes cabem em cada mensagem sem desperdicar payload? |
+| Integridade | Como detectar um fragmento corrompido antes da reassemblagem? |
+| Recuperacao | E melhor adicionar redundancia ou retransmitir o que faltou? |
+
+Por isso o MM1 separa deliberadamente as decisoes. Primeiro validamos uma
+representacao, um formato de pacote e um pipeline local. Depois medimos perda,
+corrupcao, overhead e airtime. Somente entao decidimos se FEC, Reed-Solomon,
+retransmissao seletiva ou uma combinacao dessas tecnicas vale o custo na rede
+real.
+
+### Estado atual do MM1
+
+O formato binario inicial e o protocolo versao `1`. Atualmente o laboratorio ja
+possui encoder e decoder grayscale, fragmentacao, reassemblagem fora de ordem,
+cabecalho com metadados e CRC-16/CCITT-FALSE por pacote. O transporte validado
+e local, usando UDP ou memoria, e o canal pode simular perda e corrupcao
+independentes por pacote.
+
+Ainda nao estao implementados FEC, Reed-Solomon, ACK/NACK, retransmissao
+seletiva, transmissao progressiva ou um adaptador MeshCore. Essas tecnicas
+aparecem no SDD como propostas e experimentos, nao como capacidades existentes.
+
+O `1` de MM1 identifica a primeira versao do protocolo no cabecalho. Ele nao e a
+versao do pacote Python: a implementacao de referencia atualmente e `0.1.0`.
 
 O projeto segue o documento de Specification-Driven Development em
-[`sdd/sdd.md`](sdd/sdd.md).
+[`sdd/sdd.md`](sdd/sdd.md). A relacao entre a especificacao e o codigo esta em
+[`docs/implementation-status.md`](docs/implementation-status.md).
+
+Documentacao complementar:
+
+- [`docs/architecture.md`](docs/architecture.md): limites e fluxo dos componentes.
+- [`docs/meshcore-reference.md`](docs/meshcore-reference.md): formato MeshCore, limites de pacote e encaixe do MM1.
+- [`docs/error-control.md`](docs/error-control.md): CRC, FEC, Reed-Solomon e plano de afericao.
+- [`docs/references.md`](docs/references.md): referencias academicas, normativas e tecnicas.
+- [`CHANGELOG.md`](CHANGELOG.md): historico de software, protocolo e especificacao.
 
 A pasta [`apps/`](apps/README.md) contem as aplicacoes de teste local do
 protocolo. Elas permitem executar TX e RX em processos separados, observar os
