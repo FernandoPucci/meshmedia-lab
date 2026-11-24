@@ -251,5 +251,6 @@ flowchart LR
     MESH <--> SER2
 ```
 
-Esta arquitetura-alvo não altera o wire format MM1 v1 e não significa que
-RGB332, FEC, ACK/NACK ou transmissão progressiva já estejam implementados.
+Esta arquitetura-alvo não altera o wire format MM1 v1. RGB332 já está
+implementado no pipeline local; FEC, ACK/NACK e transmissão progressiva
+continuam indisponíveis até suas respectivas implementações e validações.
