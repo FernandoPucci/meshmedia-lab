@@ -42,6 +42,68 @@ flowchart LR
   perdas, recuperacao e airtime.
 - Uma arquitetura que separa codec, protocolo, simulacao de canal e transporte.
 
+### MM1 dentro do pacote MeshCore
+
+O MM1 nao substitui o pacote MeshCore. Ele ocupa o espaco de dados de um
+payload MeshCore, que por sua vez e transportado dentro do frame de radio:
+
+```mermaid
+flowchart TB
+    subgraph MM1[Pacote MM1]
+        MH[Cabecalho MM1<br/>19 bytes]
+        MP[Payload MM1<br/>P bytes]
+        MC[CRC-16<br/>2 bytes]
+        MH --> MP --> MC
+    end
+
+    subgraph GD[Payload MeshCore GRP_DATA]
+        CH[Channel hash]
+        GM[MAC e ciphertext MeshCore]
+        GDAT[data_type + data_len + dados MM1]
+        CH --> GM --> GDAT
+    end
+
+    subgraph MC1[Pacote MeshCore v1]
+        H[Header<br/>1 byte]
+        TC[Transport codes<br/>0 ou 4 bytes]
+        PL[Path length + path<br/>1 + 0..64 bytes]
+        PAY[Payload<br/>ate 184 bytes]
+        H --> TC --> PL --> PAY
+    end
+
+    subgraph RF[Frame de radio]
+        MTU[MAX_TRANS_UNIT<br/>255 bytes]
+    end
+
+    MC --> MM1_BYTES[Pacote MM1 completo<br/>P + 21 bytes]
+    MM1_BYTES --> GDAT
+    GDAT --> PAY
+    PAY --> MTU
+
+    classDef mm1 fill:#dbeafe,stroke:#2563eb,color:#111827
+    classDef mesh fill:#dcfce7,stroke:#16a34a,color:#111827
+    classDef radio fill:#fef3c7,stroke:#d97706,color:#111827
+    class MH,MP,MC,MM1_BYTES mm1
+    class CH,GM,GDAT,H,TC,PL,PAY mesh
+    class MTU radio
+```
+
+Para `GRP_DATA`, o limite conservador do dado de aplicacao e 165 bytes. Como o
+pacote MM1 atual possui `P + 21` bytes, o payload MM1 precisa respeitar:
+
+```text
+P + 21 <= 165
+P <= 144 bytes
+```
+
+O valor padrao atual do MM1 e `P=64`, portanto um pacote MM1 ocupa 85 bytes e
+comporta-se dentro desse limite. O limite de 255 bytes do frame MeshCore nao e
+o mesmo que o payload disponivel para o MM1.
+
+Os detalhes do formato, dos tipos de payload MeshCore, dos caminhos e das
+alternativas `GRP_DATA`/`RAW_CUSTOM` estao em
+[`docs/meshcore-reference.md`](docs/meshcore-reference.md).
+
 ### O que o MM1 nao e
 
 - Nao e um substituto do MeshCore nem uma implementacao de radio.
@@ -89,6 +151,7 @@ O projeto segue o documento de Specification-Driven Development em
 Documentacao complementar:
 
 - [`docs/architecture.md`](docs/architecture.md): limites e fluxo dos componentes.
+- [`docs/meshcore-reference.md`](docs/meshcore-reference.md): formato MeshCore, limites de pacote e encaixe do MM1.
 - [`docs/error-control.md`](docs/error-control.md): CRC, FEC, Reed-Solomon e plano de afericao.
 - [`docs/references.md`](docs/references.md): referencias academicas, normativas e tecnicas.
 - [`CHANGELOG.md`](CHANGELOG.md): historico de software, protocolo e especificacao.

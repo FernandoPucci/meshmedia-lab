@@ -106,3 +106,5 @@ separados.
 
 Pillow, Qt, MeshCore, FEC e retransmissao permanecem extensoes futuras
 previstas no SDD; Pillow e usado apenas pelas aplicacoes locais nesta etapa.
+Os limites e formatos do transporte MeshCore usados como referencia estao em
+[`meshcore-reference.md`](meshcore-reference.md).

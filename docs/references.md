@@ -76,6 +76,50 @@ Long Range & Low Power Networks for the Internet of Things*. Sensors, 16(9),
 Tipo: artigo academico. Uso: contexto de redes LoRa, limitacoes de taxa,
 alcance, energia e custo de transmissao. Nao e uma especificacao do MeshCore.
 
+## MESHCORE-PACKET
+
+MeshCore developers. *Packet Format*. Documentacao oficial do protocolo nivel
+1. [MeshCore `docs/packet_format.md`](https://github.com/meshcore-dev/MeshCore/blob/main/docs/packet_format.md).
+
+Tipo: documentacao oficial de implementacao. Uso: estrutura do pacote, header,
+tipos de rota, tipos de payload, path, limites de 184 bytes de payload e
+`MAX_TRANS_UNIT`.
+
+## MESHCORE-PAYLOADS
+
+MeshCore developers. *Payload Format*. [MeshCore
+`docs/payloads.md`](https://github.com/meshcore-dev/MeshCore/blob/main/docs/payloads.md).
+
+Tipo: documentacao oficial de implementacao. Uso: campos internos de
+`GRP_DATA`, `RAW_CUSTOM`, anuncios, ACKs, mensagens e datagramas.
+
+## MESHCORE-SOURCE
+
+MeshCore developers. *MeshCore source definitions*. [MeshCore
+`src/MeshCore.h`](https://github.com/meshcore-dev/MeshCore/blob/main/src/MeshCore.h),
+[`src/Packet.h`](https://github.com/meshcore-dev/MeshCore/blob/main/src/Packet.h)
+e [`src/Packet.cpp`](https://github.com/meshcore-dev/MeshCore/blob/main/src/Packet.cpp).
+
+Tipo: fonte oficial. Uso: confirmar `MAX_PACKET_PAYLOAD`, `MAX_PATH_SIZE`,
+`MAX_TRANS_UNIT`, codificacao de `path_length` e calculo do tamanho bruto.
+
+## MESHCORE-KISS
+
+MeshCore developers. *MeshCore KISS Modem Protocol*. [Documentacao oficial
+KISS](https://github.com/meshcore-dev/MeshCore/blob/main/docs/kiss_modem_protocol.md).
+
+Tipo: documentacao oficial de interface. Uso: limite de 255 bytes para o pacote
+raw, enquadramento serial e comando `GetAirtime` (`0x0F`).
+
+## MESHCORE-RADIO-PRESETS
+
+MeshCore developers. *Radio Presets*. [Documentacao oficial de
+presets](https://github.com/meshcore-dev/MeshCore/blob/main/docs/radio_presets.md).
+
+Tipo: documentacao operacional. Uso: mostrar que frequencia, bandwidth,
+spreading factor e coding rate sao configuracoes dependentes da regiao e nao
+uma constante universal do MM1.
+
 ## Politica de referencias
 
 Uma afirmacao matematica ou de funcionamento de um algoritmo deve apontar para

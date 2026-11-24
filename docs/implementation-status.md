@@ -50,7 +50,7 @@ que a capacidade existe.
 | Parametrizacao RS experimental | Secao 10 e Fase 5 | Proposto | Nao implementado | Matriz documentada, sem experimento executavel |
 | ACK, NACK e retransmissao | Secao 9.2 e Fase 6 | Planejado | Nao implementado | Sem mensagens de controle |
 | Transmissao progressiva | Secao 5 e Fase 8 | Planejado | Nao implementado | Codec atual gera uma representacao unica |
-| Integracao MeshCore | Secao 17 e Fase 9 | Planejado | Nao implementado | Sem adaptador MeshCore |
+| Integracao MeshCore | Secao 17 e Fase 9 | Planejado | Nao implementado | Sem adaptador; limites em `docs/meshcore-reference.md` |
 
 ## Comportamento atual
 

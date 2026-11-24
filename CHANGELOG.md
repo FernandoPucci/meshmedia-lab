@@ -10,6 +10,7 @@ do software ou do protocolo.
 
 - Adicionada a matriz de rastreabilidade entre SDD e implementacao.
 - Adicionada documentacao de CRC, FEC, Reed-Solomon e plano de afericao.
+- Adicionada referencia visual e tecnica do formato de pacote MeshCore.
 - Adicionada bibliografia com artigos, padroes e fontes de parametrizacao.
 - Adicionados registros de decisao para CRC e Reed-Solomon.
 

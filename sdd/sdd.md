@@ -970,6 +970,14 @@ Também poderá existir uma aplicação integrada com ambos os modos.
 
 # 17. Integração futura com MeshCore
 
+**Status atual: PLANEJADA; nenhum adaptador MeshCore esta implementado.**
+
+Os limites e formatos do transporte externo estao documentados em
+[`docs/meshcore-reference.md`](../docs/meshcore-reference.md), com referencias
+para a documentacao e o codigo oficiais do MeshCore. O documento distingue o
+MTU bruto de 255 bytes, o payload MeshCore de ate 184 bytes e o limite de dados
+de aplicacao de `GRP_DATA` de 165 bytes.
+
 Não devemos começar modificando o firmware MeshCore.
 
 Primeiro, desenvolveremos um protocolo independente.
