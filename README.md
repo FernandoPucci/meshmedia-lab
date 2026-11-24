@@ -1,5 +1,7 @@
 # MeshMedia Lab
 
+![MeshMedia Lab - transmissao de midia em redes LoRa e MeshCore](assets/MeshMediaLab.png)
+
 ## MM1 - MeshMedia v1
 
 O MM1 (MeshMedia v1) e o protocolo experimental que estamos criando para
@@ -33,7 +35,7 @@ flowchart LR
     class D2 future
 ```
 
-### O que o MM1 e
+### O que o MM1 é?
 
 - Uma camada de protocolo para transportar midia fragmentada.
 - Uma forma de levar metadados suficientes para o receptor decodificar a
