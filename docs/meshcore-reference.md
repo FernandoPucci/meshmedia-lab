@@ -316,17 +316,33 @@ universal do MM1.
 
 ## 8. Decisao ainda em aberto
 
-O MM1 ainda nao escolheu entre:
+O MM1 ainda nao escolheu o envelope MeshCore para transportar os pacotes MM1.
+O fato de o destino ser um canal privado deve ser considerado junto com a
+seguranca e a semantica de cada tipo de payload.
 
 | Opcao | Vantagem | Custo ou risco |
 |---|---|---|
 | `GRP_DATA` | Usa canal, criptografia e entrega de grupo existentes | Limite efetivo de aplicacao menor e envelope adicional |
+| `TXT_MSG` | Pode reutilizar uma interface de mensagem existente | E textual; imagem binaria exigiria hex/base64 ou outra codificacao, aumentando muito o overhead e mudando a semantica |
 | `RAW_CUSTOM` | Mais bytes livres e formato proprio | Rota direta, seguranca e duplicacao ficam sob responsabilidade da aplicacao |
 | Pacote MeshCore customizado | Controle total do formato | Exige mudancas ou extensoes no firmware MeshCore |
 
+`GRP_DATA` e o candidato a priorizar para uma imagem binaria em canal privado,
+porque o tipo foi desenhado para dados de grupo e o MeshCore ja fornece o
+envelope de canal, criptografia e MAC. Isso ainda nao e uma decisao aprovada.
+O MM1 nao deve colocar a chave do canal, chave privada ou material criptografico
+em seu proprio payload; o adaptador deve usar a configuracao segura do MeshCore.
+
+`TXT_MSG` nao deve ser usado como primeira opcao para a imagem. Alem do custo de
+converter bytes para texto, seria necessario confirmar se a rota, a entrega e a
+criptografia de mensagens de texto preservam as propriedades desejadas para um
+datagrama binario fragmentado.
+
 O proximo experimento de transporte deve comparar pelo menos `GRP_DATA` e
-`RAW_CUSTOM` em um firmware MeshCore identificado, medindo sucesso, tamanho,
-airtime e comportamento em flooding e rota direta.
+`RAW_CUSTOM`, e documentar `TXT_MSG` como controle somente se houver uma razao
+operacional para avalia-lo. O teste deve usar um firmware MeshCore identificado,
+um canal privado com chave configurada fora do MM1, e medir sucesso, tamanho,
+airtime, autenticacao, duplicatas, flooding e rota direta.
 
 ## Referencias locais
 

@@ -16,7 +16,7 @@ os valores efetivamente usados em cada transmissao e experimento.
 |---|---|
 | MM1 v1 sem descritor | Implementado como baseline local |
 | Grayscale packed | Implementado com codec `0x01` |
-| Limite de 128 x 128 | Proposto para a Etapa B; ainda nao aplicado pelo codigo |
+| Limite de 128 x 128 | Implementado no grayscale; nao inclui tiling |
 | Descritor inline no primeiro fragmento | Proposto como extensao v1 |
 | RGB332 | Proposto; nao implementado |
 | FEC parametrizavel | Proposto; nao implementado |
@@ -51,10 +51,10 @@ efetivos sao os definidos pelo cabecalho existente em
 sao validas. A area maxima inicial e, portanto, `128 x 128`; nao ha tiling nem
 composicao automatica de imagens maiores nesta fase.
 
-O limite de 128 pixels e uma regra de perfil, nao uma afirmacao sobre o estado
-atual do codigo. Hoje `ImageMetadata` e `ImageEncoder` aceitam dimensoes maiores
-que esse limite. A aplicacao dessa validacao pertence a uma etapa posterior,
-com testes proprios.
+O limite de 128 pixels e aplicado independentemente a largura e a altura por
+`ImageMetadata`, `ImageEncoder` e `EncodedImage`. Dimensoes maiores sao
+rejeitadas antes de criar ou aceitar uma representacao grayscale. A regra nao
+introduz tiling nem altera os campos de duas bytes do cabecalho MM1 v1.
 
 ## 3. Registro de codecs
 

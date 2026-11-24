@@ -19,6 +19,8 @@ do software ou do protocolo.
 - Adicionada a matriz de experimentos locais e de radio em
   `docs/experiment-matrix.md`.
 - Atualizada a arquitetura com as sequencias de pacotes legado e com descritor.
+- Registrada como decisão de transporte pendente a comparação entre `GRP_DATA`,
+  `TXT_MSG` e `RAW_CUSTOM` para um canal MeshCore privado.
 
 ### Especificacao
 
@@ -34,8 +36,12 @@ do software ou do protocolo.
 
 ### Implementacao
 
-- Nenhuma mudanca de comportamento no software nesta revisao; RGB332, FEC,
-  descritor e benchmarks continuam sem codigo.
+- Nenhuma outra mudanca de comportamento no software nesta revisao; RGB332,
+  FEC, descritor e benchmarks continuam sem codigo.
+- Aplicado ao grayscale o limite independente de `1..128` pixels para largura e
+  altura, com testes para limites, dimensoes nao quadradas e rejeicao de valores
+  acima do perfil.
+- Mantidos inalterados o cabecalho MM1 v1, seus campos e o CRC-16/CCITT-FALSE.
 
 ## [0.1.0] - baseline atual
 
