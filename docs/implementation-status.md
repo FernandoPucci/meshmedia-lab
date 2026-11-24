@@ -58,6 +58,7 @@ que a capacidade existe.
 | RGB332 | Etapa A e Fase 7 | Proposto | Nao implementado | ID `0x02` e empacotamento apenas como proposta |
 | Limite de 128 x 128 | Ordem de trabalho / Etapa B | Implementado | Implementado | `media.py`, `codec/encoder.py`, `tests/unit/test_codec.py` e `tests/unit/test_protocol.py` |
 | Matriz de experimentos | Etapa A | Proposto | Nao implementado | `docs/experiment-matrix.md`; sem executor de benchmarks |
+| Aplicação web local TX/RX | SDD secao 29 / Issue #39 | Planejado | Nao implementado | Interface localhost e serviço serial ainda não existem |
 
 ## Comportamento atual
 
