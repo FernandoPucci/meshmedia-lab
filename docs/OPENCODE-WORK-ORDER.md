@@ -3,7 +3,7 @@
 - **Objetivo:** orientar o OpenCode na evolucao incremental do MM1 a partir das decisoes de arquitetura acordadas em 2026-11-24.
 - **Abordagem:** Specification-Driven Development (SDD).
 - **Estado deste documento:** requisitos e plano de trabalho; nao representa implementacao concluida.
-- **Baseline conhecida:** protocolo binario MM1 v1; implementacao Python 0.1.0; SDD 0.2.0-draft.
+- **Baseline conhecida:** protocolo binario MM1 v1; implementacao Python 0.1.0; SDD 0.4.0-draft.
 - **Limite inicial de imagem:** 128 x 128 pixels.
 
 Este documento complementa o SDD e nao o substitui. Antes de alterar codigo, conferir o estado real da branch e os documentos atuais. Atualizar a matriz de implementacao e o changelog quando houver mudanca efetiva.
@@ -190,6 +190,39 @@ Camadas de refinamento, prioridade de blocos e apresentacao parcial da imagem pe
 ### 3.4 Firmware customizado
 
 Nao modificar firmware MeshCore como primeiro caminho. Primeiro avaliar as interfaces seriais e recursos ja existentes.
+
+
+### 3.5 Aplicação web local TX/RX — objetivo de longo prazo
+
+Rastreabilidade: [Issue #39](https://github.com/FernandoPucci/meshmedia-lab/issues/39)
+e SDD, seção 29.
+
+Construir uma aplicação web servida em localhost, com serviço/backend local
+responsável por gerenciar a porta serial da Heltec V3 e executar o pipeline
+MM1.
+
+- A instância TX permite upload e pré-visualização da imagem, escolha de
+  dimensões, codec disponível, canal/grupo privado e parâmetros de payload.
+- A interface deve respeitar os limites reais de cada codec: grayscale até
+  128 x 128 e RGB332 até 64 x 64 no estado atual do projeto.
+- Antes do envio, calcula bytes codificados, overhead e quantidade estimada de
+  mensagens usando os limites reais do adaptador.
+- A instância RX recebe pela serial, valida e reassembla MM1, decodifica e
+  apresenta a imagem reconstruída na própria interface.
+- TX e RX são instâncias independentes, cada uma ligada à sua própria placa.
+- Preferir serial no backend local; não depender exclusivamente de Web Serial.
+- Manter criptografia/chaves sob responsabilidade do MeshCore e não registrar
+  material criptográfico. Qualquer entrada de chave na aplicação exige revisão
+  explícita de segurança e compatibilidade.
+- Preservar MM1 v1 e o firmware MeshCore original como primeira opção.
+
+**Dependências:** concluir e validar as tarefas de bancada/serial e adaptador
+MeshCore da Etapa E (#30–#35). Não iniciar a interface como substituto dessas
+validações.
+
+**Estado:** backlog arquitetural; não implementar nesta rodada. FEC,
+Reed-Solomon, ACK/NACK e transmissão progressiva só podem aparecer como
+opções quando estiverem efetivamente implementados.
 
 ---
 

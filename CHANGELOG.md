@@ -8,8 +8,11 @@ do software ou do protocolo.
 
 ### Documentacao
 
-- Registrado o contrato experimental isolado do RGB332 da Issue #38, sem
-  alteracao do envelope MM1 v1.
+- Registrado o contrato experimental isolado do RGB332 da Issue #38, sem alteracao do envelope MM1 v1.
+
+- Registrado no SDD o objetivo arquitetural de uma aplicação web local TX/RX, com duas instâncias seriais independentes, estimativa de transmissão e reconstrução visual; criada a Issue #39 para acompanhar sua evolução.
+- Atualizada a arquitetura e a ordem de trabalho para manter a aplicação web como objetivo futuro, dependente da validação do transporte MeshCore.
+
 - Adicionada a matriz de rastreabilidade entre SDD e implementacao.
 - Adicionada documentacao de CRC, FEC, Reed-Solomon e plano de afericao.
 - Adicionada referencia visual e tecnica do formato de pacote MeshCore.
