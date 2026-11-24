@@ -3,7 +3,8 @@
 ![MeshMedia Lab - transmissao de midia em redes LoRa e MeshCore](assets/MeshMediaLab.png)
 
 O MeshMedia Lab e uma iniciativa brasileira, cooperativa e de codigo aberto.
-O projeto e construido de forma colaborativa para que ideias, experimentos,
+
+O projeto é construido de forma colaborativa para que ideias, experimentos,
 referencias e decisoes tecnicas possam ser compartilhados e revisados pela
 comunidade.
 
