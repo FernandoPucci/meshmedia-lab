@@ -21,6 +21,8 @@ do software ou do protocolo.
 - Atualizada a arquitetura com as sequencias de pacotes legado e com descritor.
 - Registrada como decisão de transporte pendente a comparação entre `GRP_DATA`,
   `TXT_MSG` e `RAW_CUSTOM` para um canal MeshCore privado.
+- Registrados na matriz os resultados dos testes manuais TX/RX UDP para imagens
+  `64x64` e `32x32`.
 
 ### Especificacao
 
