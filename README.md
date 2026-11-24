@@ -1,10 +1,95 @@
 # MeshMedia Lab
 
-Laboratorio experimental de codecs e protocolos para transmissao de imagens e
-audio sobre redes MeshCore/LoRa.
+## MM1 - MeshMedia v1
+
+O MM1 (MeshMedia v1) e o protocolo experimental que estamos criando para
+transportar representacoes compactas de midia em redes com pouca largura de
+banda, payload reduzido e alto custo de airtime, como redes MeshCore/LoRa.
+
+O objetivo nao e simplesmente enviar um arquivo JPEG ou um audio convencional
+atraves do radio. Arquivos tradicionais normalmente assumem uma rede com mais
+capacidade, menor perda e retransmissao barata. Em uma rede mesh de baixa taxa,
+uma imagem pequena ainda pode ocupar muitos pacotes, consumir o canal por muito
+tempo e falhar completamente se poucos fragmentos forem perdidos.
+
+O MM1 tenta resolver esse problema tratando a midia, desde a origem, como uma
+representacao adequada ao canal:
+
+```text
+Imagem original
+      |
+      v
+Representacao compacta: resize, grayscale, quantizacao e empacotamento
+      |
+      v
+Fragmentos MM1: metadados, sequenciamento, payload e integridade
+      |
+      v
+Transporte substituivel: UDP local hoje, MeshCore/LoRa futuramente
+      |
+      v
+Validacao, reassemblagem e reconstrucao no receptor
+```
+
+### O que o MM1 e
+
+- Uma camada de protocolo para transportar midia fragmentada.
+- Uma forma de levar metadados suficientes para o receptor decodificar a
+  representacao sem compartilhar configuracoes escondidas com o transmissor.
+- Um laboratorio para medir bytes uteis, overhead, quantidade de pacotes,
+  perdas, recuperacao e airtime.
+- Uma arquitetura que separa codec, protocolo, simulacao de canal e transporte.
+
+### O que o MM1 nao e
+
+- Nao e um substituto do MeshCore nem uma implementacao de radio.
+- Nao e apenas um codec de imagem.
+- Nao promete transmitir fotografias convencionais com qualidade original.
+- Nao considera FEC, Reed-Solomon ou retransmissao como funcionalidades prontas.
+
+### O problema de engenharia
+
+O projeto precisa encontrar um equilibrio entre quatro custos que normalmente
+ficam escondidos quando usamos uma rede convencional:
+
+| Custo | Pergunta do MM1 |
+|---|---|
+| Representacao | Qual imagem minima ainda transmite informacao util? |
+| Fragmentacao | Quantos bytes cabem em cada mensagem sem desperdicar payload? |
+| Integridade | Como detectar um fragmento corrompido antes da reassemblagem? |
+| Recuperacao | E melhor adicionar redundancia ou retransmitir o que faltou? |
+
+Por isso o MM1 separa deliberadamente as decisoes. Primeiro validamos uma
+representacao, um formato de pacote e um pipeline local. Depois medimos perda,
+corrupcao, overhead e airtime. Somente entao decidimos se FEC, Reed-Solomon,
+retransmissao seletiva ou uma combinacao dessas tecnicas vale o custo na rede
+real.
+
+### Estado atual do MM1
+
+O formato binario inicial e o protocolo versao `1`. Atualmente o laboratorio ja
+possui encoder e decoder grayscale, fragmentacao, reassemblagem fora de ordem,
+cabecalho com metadados e CRC-16/CCITT-FALSE por pacote. O transporte validado
+e local, usando UDP ou memoria, e o canal pode simular perda e corrupcao
+independentes por pacote.
+
+Ainda nao estao implementados FEC, Reed-Solomon, ACK/NACK, retransmissao
+seletiva, transmissao progressiva ou um adaptador MeshCore. Essas tecnicas
+aparecem no SDD como propostas e experimentos, nao como capacidades existentes.
+
+O `1` de MM1 identifica a primeira versao do protocolo no cabecalho. Ele nao e a
+versao do pacote Python: a implementacao de referencia atualmente e `0.1.0`.
 
 O projeto segue o documento de Specification-Driven Development em
-[`sdd/sdd.md`](sdd/sdd.md).
+[`sdd/sdd.md`](sdd/sdd.md). A relacao entre a especificacao e o codigo esta em
+[`docs/implementation-status.md`](docs/implementation-status.md).
+
+Documentacao complementar:
+
+- [`docs/architecture.md`](docs/architecture.md): limites e fluxo dos componentes.
+- [`docs/error-control.md`](docs/error-control.md): CRC, FEC, Reed-Solomon e plano de afericao.
+- [`docs/references.md`](docs/references.md): referencias academicas, normativas e tecnicas.
+- [`CHANGELOG.md`](CHANGELOG.md): historico de software, protocolo e especificacao.
 
 A pasta [`apps/`](apps/README.md) contem as aplicacoes de teste local do
 protocolo. Elas permitem executar TX e RX em processos separados, observar os
