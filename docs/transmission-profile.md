@@ -4,8 +4,9 @@ Este documento define os parametros explicitos de uma transmissao de imagem e
 separa o formato MM1 v1 atualmente implementado da extensao de descritor inline
 proposta para a Etapa A.
 
-**Estado:** proposta de especificacao; nenhuma alteracao binaria foi
-implementada nesta etapa.
+**Estado:** RGB332 foi aprovado como codec da implementacao de referencia apos
+os testes locais de `32x32` e `64x64`. A integracao usa os campos existentes do
+MM1 v1, sem alterar o cabecalho de 19 bytes ou criar um descritor obrigatorio.
 
 ## 1. Escopo e estados
 
@@ -18,7 +19,7 @@ os valores efetivamente usados em cada transmissao e experimento.
 | Grayscale packed | Implementado com codec `0x01` |
 | Limite de 128 x 128 | Implementado no grayscale; nao inclui tiling |
 | Descritor inline no primeiro fragmento | Proposto como extensao v1 |
-| RGB332 | Proposto; nao implementado |
+| RGB332 | Implementado no codec e no envelope MM1 v1 |
 | FEC parametrizavel | Proposto; nao implementado |
 | Perfis nomeados ou presets | Futuro; fora desta etapa |
 
@@ -40,6 +41,7 @@ efetivos sao os definidos pelo cabecalho existente em
 | `codec_id` | `uint8` | Registro de codecs | Parcial |
 | `width` | `uint16` no v1 | `1..128`, independente de `height` | Limite proposto |
 | `height` | `uint16` no v1 | `1..128`, independente de `width` | Limite proposto |
+| `levels` | `uint16` no v1 | Grayscale: niveis validos; RGB332: `0` (nao aplicavel) | Implementado por codec |
 | `codec_parameters` | bytes versionados | Sem valores implícitos | Proposto |
 | `encoded_length` | `uint16` candidato | Obrigatorio quando nao for derivavel | Proposto |
 | `total_fragments` | `uint16` | Pelo menos 1 | Implementado no v1 |
@@ -85,11 +87,14 @@ validacao de 128 x 128 for implementada.
 
 ### 3.2 RGB332
 
-Esta e uma proposta para revisao, nao uma capacidade disponivel.
+Esta secao define o contrato RGB332 aprovado a partir da Issue #38. RGB332 e
+um codec oficial da implementacao de referencia e pode ser selecionado pelas
+aplicacoes locais. A integracao usa o envelope MM1 v1 existente; nenhum campo,
+tamanho ou ordem do cabecalho foi alterado.
 
 | Campo | Proposta |
 |---|---|
-| `codec_id` | `0x02` candidato |
+| `codec_id` | `0x02` implementado |
 | Tamanho | 1 byte por pixel |
 | Ordem dos bits | `RRRGGGBB` |
 | Ordem dos canais | Vermelho, verde, azul |
@@ -98,9 +103,48 @@ Esta e uma proposta para revisao, nao uma capacidade disponivel.
 | Tamanho derivavel | `width * height` bytes |
 | Compressao | Nenhuma nesta etapa |
 
-O identificador, a ordem dos bits e a politica de reconstrucao sao propostas
-pendentes de revisao humana. RGB332 nao deve ser adicionado ao registro de
-codecs implementado antes de existirem encoder, decoder e testes de round-trip.
+O identificador `0x02` e o identificador implementado para RGB332. No cabecalho
+MM1 v1, `levels=0` significa que a profundidade nao se aplica ao RGB332; os
+bits `3/3/2` sao fixos pelo identificador do codec. Um receptor que nao conhece
+`0x02` deve rejeitar o codec, sem tentar decodifica-lo como grayscale.
+
+#### Quantizacao experimental
+
+Cada canal de entrada e um inteiro em `0..255`. A quantizacao aprovada para o
+experimento e a mesma politica de piso usada pelo grayscale:
+
+```text
+r3 = floor(red   * 8 / 256)
+g3 = floor(green * 8 / 256)
+b2 = floor(blue  * 4 / 256)
+
+byte = (r3 << 5) | (g3 << 2) | b2
+```
+
+Assim, `r3` e `g3` pertencem a `0..7` e `b2` pertence a `0..3`. O encoder usa
+resize por amostragem inteira, com a mesma regra do grayscale, antes de
+quantizar. A entrada experimental e uma matriz de pixels RGB; alpha nao faz
+parte da representacao e deve ser rejeitado pela API isolada.
+
+O decoder reconstrui os valores usando tabelas fixas e deterministicas:
+
+```text
+3 bits: [0, 36, 73, 109, 146, 182, 219, 255]
+2 bits: [0, 85, 170, 255]
+```
+
+Essa escolha preserva os extremos e permanece alinhada ao decoder grayscale.
+Ela pode ser substituida em experimento posterior, desde que a politica de
+quantizacao e reconstrucao seja versionada e registrada nos resultados.
+
+O limite RGB332 nesta implementacao e de 64 pixels por dimensao. Os cenarios
+avaliados nesta Issue sao `32x32` e `64x64`; `128x128` nao faz parte desta
+rodada. A API aceita dimensoes independentes dentro de `1..64`, sem introduzir
+tiling ou alterar o limite global documentado para o grayscale.
+
+As aplicacoes locais recebem `--codec grayscale|rgb332`. O default permanece
+`grayscale` para preservar o comportamento anterior. `--levels` e usado
+somente pelo grayscale; RGB332 usa sempre `levels=0` no metadata do pacote.
 
 ## 4. Controle de compressao
 
@@ -169,6 +213,25 @@ dados_no_primeiro_fragmento <= payload_limit - D
 O descritor deve ser curto o bastante para nao criar um fragmento extra na
 maioria dos casos. O numero de mensagens, entretanto, deve ser calculado com o
 descritor incluido e medido separadamente do numero de bytes uteis.
+
+### 6.1 Cenario RGB332 da Issue #38
+
+O experimento usa memoria e pode usar um harness UDP localhost para validar o
+round-trip entre dois processos. Os datagramas do harness nao sao pacotes MM1;
+o payload de referencia e `64` bytes e o overhead do envelope MM1 e calculado
+separadamente, sem descritor e sem o envelope externo MeshCore:
+
+```text
+fragmentos = ceil(encoded_bytes / 64)
+header_bytes = fragmentos * 19
+crc_bytes = fragmentos * 2
+overhead_mm1 = header_bytes + crc_bytes
+wire_bytes = encoded_bytes + overhead_mm1
+```
+
+O baseline principal e grayscale packed com `16` niveis, escolhido pelo menor
+custo de transporte e por ser o default atual das aplicacoes locais. O valor de
+`levels` continua parametrizavel para uma comparacao posterior com `256` niveis.
 
 ## 7. Modos de transmissao
 

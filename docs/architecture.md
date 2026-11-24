@@ -15,6 +15,7 @@ codec.
 | Image Source | `src/meshmedia_lab/application/source.py` |
 | Encoder | `src/meshmedia_lab/codec/encoder.py` |
 | Decoder | `src/meshmedia_lab/codec/decoder.py` |
+| Codec RGB332 | `src/meshmedia_lab/codec/rgb332.py` |
 | Fragmenter | `src/meshmedia_lab/protocol/fragmenter.py` |
 | Reassembler | `src/meshmedia_lab/protocol/reassembler.py` |
 | CRC | `src/meshmedia_lab/protocol/crc.py` |
@@ -31,6 +32,7 @@ codec.
 | Perfil de transmissao | `docs/transmission-profile.md` |
 | Transmission Descriptor | `docs/transmission-descriptor.md` |
 | Matriz de experimentos | `docs/experiment-matrix.md` |
+| Experimento RGB332 | `benchmarks/rgb332_experiment.py` |
 
 ## Limites
 
@@ -40,6 +42,8 @@ codec.
 - `simulation` injeta as condicoes de um canal sem alterar o protocolo.
 - `application` coordena os componentes, sem implementar seus detalhes.
 - `apps/local` fornece executaveis de validacao, sem ser parte do codec.
+- O codec RGB332 aprovado usa o envelope MM1 v1 existente; o harness UDP
+  experimental continua disponivel apenas para validacao local separada.
 
 ## Fluxo TX/RX local
 
@@ -172,9 +176,32 @@ O teste automatizado equivalente está em
 `tests/integration/test_local_apps.py` e inicia TX e RX como processos
 separados.
 
+## Fluxo do experimento RGB332
+
+O experimento da Issue #38 pode validar o codec em memoria, pelo caminho MM1
+local ou pelo harness UDP localhost. O harness continua separado do protocolo,
+enquanto o caminho MM1 usa o pacote v1 sem alterar seu layout:
+
+```text
+Imagem RGB ou grayscale
+    |
+    v
+Codec selecionado -> bytes codificados
+    |                    |
+    |                    +--> contagem analitica de fragmentos MM1
+    v                         (payload 64, header 19, CRC 2)
+Decoder selecionado -> imagem reconstruida
+```
+
+O benchmark e o harness usam Pillow somente na borda para carregar e salvar
+imagens. O campo `codec` seleciona grayscale (`0x01`) ou RGB332 (`0x02`) e o
+campo `levels` vale `0` somente para RGB332. O Transmission Descriptor nao e
+obrigatorio. O harness UDP possui um enquadramento local separado e nao deve
+ser confundido com o envelope MM1.
+
 Pillow, Qt, FEC, retransmissao e o modo com descritor permanecem extensoes ou
-componentes futuros conforme a matriz de implementacao; Pillow e usado apenas
-pelas aplicacoes locais nesta etapa. MeshCore continua sendo um transporte
-planejado, nao uma capacidade implementada.
+componentes futuros conforme a matriz de implementacao; Pillow e usado pelas
+aplicacoes locais e pelo benchmark RGB332 somente na borda. MeshCore continua
+sendo um transporte planejado, nao uma capacidade implementada.
 Os limites e formatos do transporte MeshCore usados como referencia estao em
 [`meshcore-reference.md`](meshcore-reference.md).

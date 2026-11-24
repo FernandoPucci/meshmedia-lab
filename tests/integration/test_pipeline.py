@@ -23,3 +23,30 @@ class ImagePipelineTests(unittest.TestCase):
         self.assertEqual(result.image, ((0, 136), (255, 68)))
         self.assertEqual(result.packets_sent, 2)
         self.assertEqual(result.packets_received, 2)
+
+    def test_pipeline_selects_rgb332_codec(self) -> None:
+        pipeline = ImagePipeline(
+            fragmenter=Fragmenter(max_payload_size=1),
+            codec="rgb332",
+            width=2,
+            height=2,
+        )
+
+        result = pipeline.transmit(
+            (
+                ((0, 0, 0), (255, 0, 0)),
+                ((0, 255, 0), (0, 0, 255)),
+            ),
+            image_id=11,
+        )
+
+        self.assertEqual(
+            result.image,
+            (
+                ((0, 0, 0), (255, 0, 0)),
+                ((0, 255, 0), (0, 0, 255)),
+            ),
+        )
+        self.assertEqual(result.encoded_size, 4)
+        self.assertEqual(result.packets_sent, 4)
+        self.assertEqual(result.packets_received, 4)
