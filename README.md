@@ -164,6 +164,12 @@ O projeto segue o documento de Specification-Driven Development em
 Documentacao complementar:
 
 - [`docs/architecture.md`](docs/architecture.md): limites e fluxo dos componentes.
+- [`docs/transmission-profile.md`](docs/transmission-profile.md): parametros
+  explicitos, codecs e limites do perfil.
+- [`docs/transmission-descriptor.md`](docs/transmission-descriptor.md): proposta
+  de descritor compacto no primeiro fragmento MM1 v1.
+- [`docs/experiment-matrix.md`](docs/experiment-matrix.md): cenarios, metricas
+  e separacao entre simulacao e radio real.
 - [`docs/meshcore-reference.md`](docs/meshcore-reference.md): formato MeshCore, limites de pacote e encaixe do MM1.
 - [`docs/error-control.md`](docs/error-control.md): CRC, FEC, Reed-Solomon e plano de afericao.
 - [`docs/references.md`](docs/references.md): referencias academicas, normativas e tecnicas.

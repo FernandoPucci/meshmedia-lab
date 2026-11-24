@@ -10,7 +10,7 @@ mas esta matriz e a referencia para distinguir proposta, plano e implementacao.
 |---|---|
 | Versao do software | `0.1.0` |
 | Versao do protocolo binario | `1` |
-| Revisao do SDD | `0.2.0-draft` |
+| Revisao do SDD | `0.3.0-draft` |
 | Conformidade | Parcial |
 | Ultima revisao | 2026-11-24 |
 
@@ -27,6 +27,7 @@ dos pacotes.
 | Parcial | Existe codigo, mas ele cobre apenas parte do requisito. |
 | Proposto | Existe uma decisao ou desenho tecnico, mas nao existe implementacao. |
 | Planejado | Foi identificado como trabalho futuro, sem desenho fechado. |
+| Futuro | Visao de longo prazo fora da etapa atual, sem autorizacao de implementacao. |
 | Obsoleto | Foi substituido por outra decisao ou abordagem. |
 
 Uma capacidade somente pode ser marcada como implementada quando codigo, testes
@@ -48,9 +49,15 @@ que a capacidade existe.
 | FEC | Secao 9.3 | Proposto | Nao implementado | Sem modulo FEC |
 | Reed-Solomon | Secao 10 e Fase 5 | Proposto | Nao implementado | Sem encoder ou decoder RS |
 | Parametrizacao RS experimental | Secao 10 e Fase 5 | Proposto | Nao implementado | Matriz documentada, sem experimento executavel |
+| Interface abstrata FEC | Etapa A / `docs/error-control.md` | Proposto | Nao implementado | Contrato documental, sem classes ou modulo |
 | ACK, NACK e retransmissao | Secao 9.2 e Fase 6 | Planejado | Nao implementado | Sem mensagens de controle |
 | Transmissao progressiva | Secao 5 e Fase 8 | Planejado | Nao implementado | Codec atual gera uma representacao unica |
 | Integracao MeshCore | Secao 17 e Fase 9 | Planejado | Nao implementado | Sem adaptador; limites em `docs/meshcore-reference.md` |
+| Perfil de transmissao parametrizado | Etapa A | Proposto | Nao implementado | `docs/transmission-profile.md`; sem presets no codigo |
+| Transmission Descriptor inline | Etapa A | Proposto | Nao implementado | `docs/transmission-descriptor.md`; sem parser ou serializacao |
+| RGB332 | Etapa A e Fase 7 | Proposto | Nao implementado | ID `0x02` e empacotamento apenas como proposta |
+| Limite de 128 x 128 | Ordem de trabalho / Etapa B | Proposto | Nao implementado | API atual ainda aceita dimensoes maiores |
+| Matriz de experimentos | Etapa A | Proposto | Nao implementado | `docs/experiment-matrix.md`; sem executor de benchmarks |
 
 ## Comportamento atual
 
@@ -71,6 +78,12 @@ Consequentemente, uma perda ou uma corrupcao detectada pelo CRC torna a
 transmissao incompleta no MVP. FEC e retransmissao sao alternativas futuras,
 nao comportamentos disponiveis atualmente.
 
+O modo legado continua sendo o unico caminho implementado. A extensao proposta
+de descritor coloca `marker + descriptor_length + descriptor_body` no payload do
+primeiro fragmento, mas ainda nao possui marcador final, parser, testes ou
+codigo de reassemblagem. Ela nao altera a classificacao do protocolo v1 nem
+deve ser tratada como implementada.
+
 ## Propostas que ainda nao sao protocolo
 
 O SDD apresenta flags, FEC, ACK/NACK e formatos de cabecalho adicionais como
@@ -81,6 +94,11 @@ decisao de compatibilidade.
 Em particular, `FEC_PRESENT` aparece no cabecalho conceitual do SDD, mas ainda
 nao existe nas flags de `packet.py`. A matriz deve continuar marcando essa
 capacidade como proposta.
+
+O descritor inline segue a mesma regra. O cabecalho de 19 bytes, os campos
+atuais e o CRC nao podem ser modificados silenciosamente. Enquanto a extensao
+nao for revisada e implementada com testes, o primeiro payload continua sendo
+somente dados codificados.
 
 ## Como atualizar a matriz
 

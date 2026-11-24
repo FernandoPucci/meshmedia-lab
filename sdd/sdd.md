@@ -5,12 +5,15 @@
 - **Abordagem:** Specification-Driven Development (SDD)
 - **Objetivo:** Desenvolver um protocolo eficiente para transmissão de imagens e, futuramente, áudio através de redes MeshCore/LoRa.
 - **Nome do protocolo:** MM1 (MeshMedia v1)
-- **Revisão do SDD:** 0.2.0-draft
+- **Revisão do SDD:** 0.3.0-draft
 - **Versão da implementação de referência:** 0.1.0
 - **Versão do protocolo binário:** 1
 - **Conformidade:** Parcial
 - **Matriz de implementação:** [`docs/implementation-status.md`](../docs/implementation-status.md)
 - **Documentação de controle de erros:** [`docs/error-control.md`](../docs/error-control.md)
+- **Perfil de transmissão:** [`docs/transmission-profile.md`](../docs/transmission-profile.md)
+- **Transmission Descriptor:** [`docs/transmission-descriptor.md`](../docs/transmission-descriptor.md)
+- **Matriz de experimentos:** [`docs/experiment-matrix.md`](../docs/experiment-matrix.md)
 
 # 0. Versionamento e conformidade
 
@@ -24,7 +27,7 @@ O projeto usa tres identificadores independentes:
 |---|---|
 | Versao do software | Evolucao do pacote Python e de sua API. Atualmente `0.1.0`. |
 | Versao do protocolo | Compatibilidade do formato binario transportado. Atualmente `1`. |
-| Revisao do SDD | Evolucao dos requisitos, decisoes e propostas. Atualmente `0.2.0-draft`. |
+| Revisao do SDD | Evolucao dos requisitos, decisoes e propostas. Atualmente `0.3.0-draft`. |
 
 Uma alteracao editorial nao altera a versao do software nem a versao do
 protocolo. Uma alteracao incompativel no formato ou no significado dos pacotes
@@ -37,6 +40,52 @@ Os termos usados neste documento sao:
 - **Parcial:** existe codigo, mas parte do requisito ainda falta.
 - **Proposto:** existe um desenho tecnico, mas nao existe implementacao.
 - **Planejado:** trabalho futuro ainda sem desenho fechado.
+- **Futuro:** visao de longo prazo que nao deve ser implementada na etapa atual.
+
+---
+
+# 0.1 Baseline MM1 v1 e extensao de descritor
+
+O protocolo binario atualmente implementado e MM1 v1. O pacote local possui o
+seguinte envelope, documentado tambem em
+[`docs/transmission-descriptor.md`](../docs/transmission-descriptor.md):
+
+```text
+magic(2) | version(1) | media_type(1) | codec(1) | flags(1)
+| image_id(2) | fragment_number(2) | total_fragments(2)
+| width(2) | height(2) | levels(2) | payload_length(1)
+| payload(P) | crc16(2)
+```
+
+O cabecalho tem 19 bytes, todos os inteiros usam ordem de rede e o CRC-16/
+CCITT-FALSE cobre cabecalho e payload. O pacote completo tem `P + 21` bytes.
+Nenhum campo, tamanho ou significado desta estrutura pode ser alterado
+silenciosamente.
+
+O caminho legado coloca dados codificados diretamente no payload do primeiro
+fragmento. A Etapa A especifica uma extensao opcional: um marcador, um
+comprimento e um descritor compacto podem preceder os dados no payload do
+primeiro fragmento. O cabecalho v1 continua igual e os fragmentos seguintes
+continuam usando o envelope v1.
+
+```text
+modo legado:
+  header v1 | dados do fragmento 0 | CRC
+
+modo com descritor:
+  header v1 | marker | length | descriptor | dados do fragmento 0 | CRC
+```
+
+O modo com descritor exige receptor atualizado. Um receptor legado interpretaria
+o prefixo como dados da imagem. Essa extensao nao e v2, mas tambem nao deve ser
+apresentada como compatibilidade transparente. Os dois modos devem ser
+identificados e testados separadamente.
+
+O descritor nao repete `image_id`, fragmentacao, dimensoes, codec ou niveis que
+ja estejam no cabecalho v1. Ele existe para parametros adicionais, como
+compressao, tamanho nao derivavel e configuracao FEC. O formato exato do corpo,
+o valor do marcador e a politica de selecao do modo permanecem proposta para
+revisao humana.
 
 ---
 
@@ -156,6 +205,11 @@ Uma imagem de 64 × 64 pixels, com 16 tons de cinza:
 
 Portanto, uma imagem 64 × 64 pixels com 16 tons de cinza ocupa aproximadamente 2 KB antes de qualquer compressão adicional.
 
+O registro de codecs, os identificadores e a forma de empacotamento estao
+consolidados em [`docs/transmission-profile.md`](../docs/transmission-profile.md).
+Grayscale packed permanece o codec de referencia implementado; RGB332 e uma
+proposta explicita e ainda nao possui codigo.
+
 ---
 
 ## 4.3 Redimensionamento
@@ -170,7 +224,12 @@ Possíveis resoluções iniciais:
 - 64 × 64
 - 128 × 128
 
-O sistema deverá permitir experimentar diferentes resoluções e avaliar o equilíbrio entre:
+Nesta etapa, cada dimensao deve ser independente e respeitar o limite inicial
+de 128 pixels. Dimensoes maiores e tiling sao futuros e nao fazem parte do
+protocolo ou da implementacao atual.
+
+O sistema deverá permitir experimentar diferentes resoluções dentro desse
+limite e avaliar o equilíbrio entre:
 
 - Qualidade visual.
 - Tamanho da imagem.
@@ -345,6 +404,11 @@ O receptor deverá saber:
 # 7. Identificação de fragmentos
 
 Cada fragmento deverá possuir algum tipo de identificação.
+
+O exemplo abaixo e uma representacao conceitual anterior. No MM1 v1 atual,
+`image_id`, `fragment_number` e `total_fragments` sao campos de `Packet`,
+documentados na secao 0.1 e no descritor proposto. O nome historico `image_id`
+corresponde ao identificador da transmissao no caminho atual.
 
 Proposta conceitual:
 
@@ -596,6 +660,11 @@ nao possuem o mesmo custo de airtime.
 O plano de afericao completo esta em
 [`docs/error-control.md`](../docs/error-control.md), com referencias a Reed e
 Solomon e ao RFC 5510 em [`docs/references.md`](../docs/references.md).
+
+A matriz que separa baseline, FEC, ambiente local e radio real esta em
+[`docs/experiment-matrix.md`](../docs/experiment-matrix.md). Nenhum resultado
+da matriz deve ser tratado como medicao de radio enquanto for obtido em memoria,
+UDP ou simulacao.
 
 Reed-Solomon poderá ser especialmente interessante em canais onde retransmissões são caras.
 
@@ -1088,39 +1157,49 @@ O protocolo poderá possuir:
 - ACK/NACK.
 - Retransmissão.
 
-# 19. Cabeçalho inicial proposto
+No MM1 v1 implementado, somente `IMAGE`, fragmentacao, flags de primeiro/ultimo
+fragmento e CRC estao no caminho funcional. FEC, ACK/NACK e retransmissao sao
+propostas ou planos futuros.
 
-Proposta conceitual:
+# 19. Cabeçalho MM1 v1 e descritor proposto
+
+O desenho abaixo era uma proposta conceitual inicial e nao deve ser usado como
+descricao do wire format atual. O formato implementado e o de 19 bytes
+documentado na secao 0.1 e em
+[`docs/transmission-descriptor.md`](../docs/transmission-descriptor.md).
+
+O envelope v1 atual e:
 
 ```text
-+-----------------------------------+
-| Magic               2 bytes       |
-| Version             1 byte        |
-| Media Type          1 byte        |
-| Image ID            2 bytes       |
-| Sequence Number     2 bytes       |
-| Total Fragments     2 bytes       |
-| Payload Length      1 byte        |
-| Flags               1 byte        |
-| Payload             N bytes       |
-| CRC                 2 bytes       |
-+-----------------------------------+
+magic(2) | version(1) | media_type(1) | codec(1) | flags(1)
+| image_id(2) | fragment_number(2) | total_fragments(2)
+| width(2) | height(2) | levels(2) | payload_length(1)
+| payload(P) | crc16(2)
 ```
 
-Esta é apenas uma proposta inicial.
+Todos os inteiros usam ordem de rede. O CRC-16/CCITT-FALSE cobre o cabecalho e
+o payload. O pacote completo tem `P + 21` bytes.
 
-O cabeçalho deverá ser otimizado considerando o payload real disponível no MeshCore.
+Uma extensao proposta para o primeiro payload e:
 
-Cada byte de cabeçalho representa overhead.
+```text
+header v1 | marker | descriptor_length | descriptor_body | dados | crc16
+```
 
-Possíveis flags:
+O marcador e o comprimento pertencem ao payload do primeiro fragmento e nao
+alteram `FLAG_FIRST_FRAGMENT`. O descritor e opcional; o modo legado continua
+com dados diretamente no payload. O corpo, o valor do marcador e as regras de
+seleção do modo ainda exigem revisao humana.
+
+As flags atualmente implementadas sao somente:
 
 ```text
 0x01 = FIRST_FRAGMENT
 0x02 = LAST_FRAGMENT
-0x04 = FEC_PRESENT
-0x08 = ACK_REQUIRED
 ```
+
+`FEC_PRESENT` e `ACK_REQUIRED` permanecem conceitos futuros e nao existem no
+wire format v1 atual.
 
 # 20. Fases de desenvolvimento
 
@@ -1203,6 +1282,10 @@ Avaliar a reconstrução da imagem.
 
 ## Fase 5 — Reed-Solomon (PLANEJADA; NAO INICIADA)
 
+O contrato abstrato de FEC foi especificado na Etapa A em
+[`docs/error-control.md`](../docs/error-control.md), mas nao existe modulo FEC
+no codigo.
+
 Implementar FEC.
 
 Experimentar diferentes configurações.
@@ -1241,6 +1324,12 @@ Implementar:
 Comparar retransmissão com FEC.
 
 ## Fase 7 — Codec (PARCIAL)
+
+Grayscale packed e o caminho implementado. O registro de parametros e a
+proposta RGB332 estao em [`docs/transmission-profile.md`](../docs/transmission-profile.md).
+
+O limite inicial de 128 x 128 e uma regra de especificacao ainda nao aplicada
+pela API atual.
 
 Experimentar:
 
@@ -1496,10 +1585,14 @@ Precisaremos investigar:
 - RLE funciona bem para as imagens que queremos transmitir?
 - Delta encoding é eficiente?
 - Codificação por linhas é vantajosa?
-- Qual CRC utilizar?
-- CRC-16 ou CRC-32?
+- Qual e o custo do CRC-16/CCITT-FALSE nas diferentes cargas?
 - Reed-Solomon vale o overhead?
 - Qual proporção de FEC?
+- Qual corpo compacto e marcador do descritor devem ser aprovados para a
+  extensao v1?
+- Como selecionar explicitamente entre o modo legado e o modo com descritor?
+- Qual politica de fila e timeout deve ser usada quando o primeiro fragmento
+  chegar depois dos demais?
 - Retransmissão seletiva é melhor?
 - Como evitar que transmissões longas monopolizem o canal?
 - Como o protocolo se comportará em uma rede Mesh com múltiplos saltos?
@@ -1511,11 +1604,25 @@ Precisaremos investigar:
 - Será necessário customizar o firmware?
 - Qual será o mecanismo de descoberta e identificação de transmissões?
 
+O CRC atual ja possui uma decisao registrada: CRC-16/CCITT-FALSE por pacote,
+com os parametros descritos em [`docs/error-control.md`](../docs/error-control.md)
+e no ADR 0001. A matriz de experimentos deve medir seu custo, nao reabrir
+silenciosamente a escolha do algoritmo.
+
 # 27. Próximo passo
 
-O primeiro objetivo deverá ser criar o projeto de laboratório independente do MeshCore.
+O proximo passo imediato e revisar humanamente a Etapa A e aprovar ou ajustar a
+extensao de descritor dentro do MM1 v1. Nenhum wire format novo deve ser
+implementado antes dessa revisao.
 
-Implementar:
+Depois da revisao, o trabalho de implementacao deve continuar em incrementos
+separados, sem iniciar RGB332, Reed-Solomon ou integracao MeshCore
+automaticamente.
+
+O objetivo de longo prazo continua sendo criar e validar o projeto de
+laboratorio independente do MeshCore.
+
+Plano posterior, somente depois da revisao da Etapa A:
 
 1. Estrutura do projeto.
 2. Image Encoder.

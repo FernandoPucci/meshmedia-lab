@@ -28,6 +28,9 @@ codec.
 | Aplicacao TX | `apps/local/tx.py` |
 | Aplicacao RX | `apps/local/rx.py` |
 | Integracao Pillow | `apps/local/image_io.py` |
+| Perfil de transmissao | `docs/transmission-profile.md` |
+| Transmission Descriptor | `docs/transmission-descriptor.md` |
+| Matriz de experimentos | `docs/experiment-matrix.md` |
 
 ## Limites
 
@@ -80,6 +83,71 @@ Por isso, cada pacote transporta:
 O overhead atual e intencionalmente visivel nos logs. A otimizacao do
 cabecalho fica para depois da medicao, conforme o SDD.
 
+## Modos de transmissao MM1 v1
+
+O caminho implementado atualmente e o modo legado. Cada fragmento possui o
+cabecalho v1 de 19 bytes, metadados de imagem, payload e CRC. O primeiro payload
+comeca diretamente com dados codificados.
+
+O modo com descritor e uma extensao proposta dentro do mesmo protocolo v1. Ele
+mantem o cabecalho, o CRC e os fragmentos posteriores, mas coloca no primeiro
+payload um prefixo compacto:
+
+```text
+header v1 | marker | descriptor_length | descriptor_body | dados
+```
+
+O receptor atualizado valida o prefixo e remove seus bytes antes de entregar os
+dados ao `Reassembler`. O receptor legado nao conhece esse prefixo; portanto os
+modos devem ser selecionados explicitamente e nao sao transparentemente
+interoperaveis.
+
+```mermaid
+flowchart TD
+    A[Configuracao explicita] --> B{Modo}
+    B -->|Legado| C[Header v1 + dados no primeiro payload]
+    B -->|Descritor inline| D[Header v1 + marker + length + descritor + dados]
+    C --> E[CRC-16 por pacote]
+    D --> E
+    E --> F[Transporte substituivel]
+    F --> G[Receiver valida pacote]
+    G --> H{Descritor presente?}
+    H -->|Nao| I[Metadados do cabecalho v1]
+    H -->|Sim| J[Valida e remove prefixo]
+    I --> K[Reassembler]
+    J --> K
+    K --> L[Decoder]
+```
+
+O descritor nao repete `image_id`, fragmentacao, codec, dimensoes ou niveis ja
+presentes no cabecalho v1. Ele e reservado para parametros adicionais, como
+compressao, tamanho nao derivavel e FEC futuro. O limite de payload deve
+considerar o tamanho do prefixo e pode aumentar a quantidade de fragmentos.
+
+## Interface FEC na arquitetura
+
+FEC nao e parte do encoder de imagem nem do transporte. A camada proposta fica
+entre os bytes codificados e a fragmentacao:
+
+```mermaid
+flowchart LR
+    A[Image Encoder] --> B[Bytes codificados]
+    B --> C[Particao em blocos]
+    C --> D[FEC Encoder abstrato]
+    D --> E[Simbolos de origem e reparo]
+    E --> F[Fragmenter MM1 v1]
+    F --> G[Packet + CRC]
+    G --> H[Transport Adapter]
+    H --> I[Packet + CRC validado]
+    I --> J[FEC Decoder abstrato]
+    J --> K[Bytes de origem]
+    K --> L[Reassembler e Image Decoder]
+```
+
+O contrato de FEC esta documentado em `docs/error-control.md`. Nao existe
+implementacao FEC no pacote atual, e Reed-Solomon continua sendo candidato
+experimental.
+
 ## Execucao
 
 Instale o extra local:
@@ -104,7 +172,9 @@ O teste automatizado equivalente está em
 `tests/integration/test_local_apps.py` e inicia TX e RX como processos
 separados.
 
-Pillow, Qt, MeshCore, FEC e retransmissao permanecem extensoes futuras
-previstas no SDD; Pillow e usado apenas pelas aplicacoes locais nesta etapa.
+Pillow, Qt, FEC, retransmissao e o modo com descritor permanecem extensoes ou
+componentes futuros conforme a matriz de implementacao; Pillow e usado apenas
+pelas aplicacoes locais nesta etapa. MeshCore continua sendo um transporte
+planejado, nao uma capacidade implementada.
 Os limites e formatos do transporte MeshCore usados como referencia estao em
 [`meshcore-reference.md`](meshcore-reference.md).

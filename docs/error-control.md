@@ -14,6 +14,11 @@ proposta experimental.
 O estado completo de conformidade esta em
 [`implementation-status.md`](implementation-status.md).
 
+Os parametros de transmissao e a proposta de descritor que podera anunciar FEC
+estao em [`transmission-profile.md`](transmission-profile.md) e
+[`transmission-descriptor.md`](transmission-descriptor.md). Os cenarios de
+comparacao estao em [`experiment-matrix.md`](experiment-matrix.md).
+
 ## 1. Quatro conceitos diferentes
 
 | Conceito | Pergunta respondida | Papel no projeto |
@@ -94,6 +99,106 @@ transmissao percorre varios saltos ou o custo de airtime de uma retransmissao e
 maior que o custo de alguns simbolos de reparo. A redundancia, entretanto,
 aumenta o numero de bytes e pode piorar a ocupacao do canal quando a perda e
 baixa.
+
+### 4.1 Interface abstrata proposta
+
+A interface FEC deve ser independente do algoritmo. Ela pertence a uma camada
+de laboratorio entre os dados codificados e a fragmentacao; nao deve obrigar o
+protocolo a conhecer Reed-Solomon.
+
+O contrato logico proposto e:
+
+```text
+FecEncoder.encode(source_block, config)
+    -> EncodedBlock(source_symbols, repair_symbols, metadata)
+
+FecDecoder.decode(received_symbols, erasures, config)
+    -> DecodeResult(source_block, recovered_symbols, success, reason)
+```
+
+Os nomes acima sao contrato documental, nao API implementada.
+
+#### Configuracao
+
+`FecConfig` deve conter, no minimo:
+
+| Campo | Significado |
+|---|---|
+| `algorithm_id` | Identifica o algoritmo sem acoplar a classe concreta |
+| `symbol_size` | Tamanho fixo de cada simbolo em bytes |
+| `data_symbols` (`k`) | Quantidade de simbolos de origem |
+| `repair_symbols` (`r`) | Quantidade de simbolos de reparo |
+| `block_symbols` (`n`) | Quantidade total transmitida; normalmente `k + r` |
+| `interleaving_depth` | Profundidade de intercalacao, ou zero |
+| `padding_policy` | Regra para completar o ultimo bloco |
+| `incomplete_block_policy` | Regra para bloco menor que `k` |
+
+Uma configuracao invalida deve falhar antes de codificar. Exemplos: simbolo
+com tamanho zero, `k` zero, `r` negativo, `n` diferente de `k + r` quando o
+algoritmo exigir essa relacao, ou bloco maior que os limites declarados.
+
+#### Encoder
+
+O encoder recebe um bloco de bytes de origem e produz simbolos de tamanho fixo.
+O resultado deve distinguir:
+
+- simbolos de origem, com indices `0..k-1`;
+- simbolos de reparo, com indices `k..n-1`;
+- bytes de padding adicionados ao ultimo bloco;
+- metadados necessarios para remover o padding depois da recuperacao.
+
+O encoder nao deve serializar pacotes MM1 nem calcular o CRC. A fragmentacao,
+o envelope v1 e a integridade permanecem responsabilidades do protocolo.
+
+#### Decoder
+
+O decoder recebe simbolos identificados por indice e um conjunto de erasures
+conhecidas. Um pacote ausente ou rejeitado pelo CRC pode entrar como erasure
+quando o indice do simbolo for conhecido.
+
+O resultado deve informar:
+
+- se o bloco foi recuperado;
+- bytes de origem, sem padding quando possivel;
+- quantidade de simbolos recuperados;
+- indices ausentes ou invalidos;
+- motivo de falha quando houver dados insuficientes ou configuracao invalida.
+
+O decoder nao deve tratar um simbolo corrompido como valido apenas porque a
+posicao existe. Corrupcoes desconhecidas pertencem a um cenario separado do
+experimento RS-only e precisam ser identificadas no resultado.
+
+#### Blocos incompletos e limites
+
+O comportamento do ultimo bloco deve ser escolhido por configuracao. As
+alternativas sao rejeitar o bloco, preencher ate `k` simbolos ou usar uma
+representacao explicita de comprimento. O valor adotado deve aparecer no
+descritor e no registro do experimento quando FEC for integrado.
+
+Um decoder nao pode prometer recuperacao fora dos limites do algoritmo. Para
+Reed-Solomon, a referencia classica e `2e + s <= n-k`, onde `e` sao erros
+desconhecidos e `s` sao erasures conhecidas. Esse limite e de simbolos, nao de
+bits.
+
+#### Separacao de camadas
+
+```mermaid
+flowchart LR
+    A[Bytes do codec] --> B[Particao em blocos]
+    B --> C[Interface FEC]
+    C --> D[Simbolos de origem e reparo]
+    D --> E[Fragmentacao MM1 v1]
+    E --> F[CRC por pacote]
+    F --> G[Transporte]
+    G --> H[Validacao CRC]
+    H --> I[Decoder FEC]
+    I --> J[Bytes de origem]
+    J --> K[Reassemblagem e decoder de imagem]
+```
+
+A interface deve permitir Hamming, BCH, Reed-Solomon ou outro algoritmo no
+futuro sem modificar o contrato do codec de imagem. Nenhuma implementacao FEC
+ou classe de interface e criada nesta Etapa A.
 
 ### FEC, retransmissao e CRC
 
@@ -178,7 +283,10 @@ cabecalho precisara identificar pelo menos o bloco FEC, o indice do simbolo, o
 tamanho do bloco e a configuracao `k/n` ou um perfil equivalente.
 
 O protocolo atual nao possui esses campos. A flag `FEC_PRESENT` do SDD e
-conceitual e nao existe nas flags implementadas em `packet.py`.
+conceitual e nao existe nas flags implementadas em `packet.py`. A extensao
+inline proposta para MM1 v1 pode transportar esses parametros no corpo do
+descritor, mas isso continua sem implementacao e depende da revisao do wire
+format da extensao.
 
 ## 7. Plano de afericao
 
@@ -216,6 +324,10 @@ As metricas obrigatorias sao:
 Os experimentos devem registrar a semente, a configuracao completa e o numero
 de repeticoes. Resultados sem esses dados nao devem ser tratados como
 comparaveis.
+
+O conjunto minimo de cenarios, payloads, dimensoes e ambientes esta detalhado
+em [`experiment-matrix.md`](experiment-matrix.md). O modo RS-only descrito ali
+e somente um harness controlado e nao um modo do MM1 v1.
 
 ## 8. Limites e decisoes em aberto
 
