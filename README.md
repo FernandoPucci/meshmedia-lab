@@ -15,20 +15,22 @@ tempo e falhar completamente se poucos fragmentos forem perdidos.
 O MM1 tenta resolver esse problema tratando a midia, desde a origem, como uma
 representacao adequada ao canal:
 
-```text
-Imagem original
-      |
-      v
-Representacao compacta: resize, grayscale, quantizacao e empacotamento
-      |
-      v
-Fragmentos MM1: metadados, sequenciamento, payload e integridade
-      |
-      v
-Transporte substituivel: UDP local hoje, MeshCore/LoRa futuramente
-      |
-      v
-Validacao, reassemblagem e reconstrucao no receptor
+```mermaid
+flowchart LR
+    A[Imagem original] --> B[Representacao compacta<br/>resize, grayscale, quantizacao e empacotamento]
+    B --> C[Fragmentos MM1<br/>metadados, sequenciamento, payload e integridade]
+    C --> D[Transporte substituivel]
+    D --> E[Validacao e reassemblagem]
+    E --> F[Reconstrucao no receptor]
+
+    D --> D1[UDP local atual]
+    D --> D2[MeshCore/LoRa futuro]
+
+    classDef current fill:#dbeafe,stroke:#2563eb,color:#111827
+    classDef future fill:#fef3c7,stroke:#d97706,color:#111827
+    class A,B,C,E,F current
+    class D1 current
+    class D2 future
 ```
 
 ### O que o MM1 e
