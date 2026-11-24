@@ -3,7 +3,7 @@
 - **Objetivo:** orientar o OpenCode na evolucao incremental do MM1 a partir das decisoes de arquitetura acordadas em 2026-11-24.
 - **Abordagem:** Specification-Driven Development (SDD).
 - **Estado deste documento:** requisitos e plano de trabalho; nao representa implementacao concluida.
-- **Baseline conhecida:** protocolo binario MM1 v1; implementacao Python 0.1.0; SDD 0.2.0-draft.
+- **Baseline conhecida:** protocolo binario MM1 v1; implementacao Python 0.1.0; SDD 0.4.0-draft.
 - **Limite inicial de imagem:** 128 x 128 pixels.
 
 Este documento complementa o SDD e nao o substitui. Antes de alterar codigo, conferir o estado real da branch e os documentos atuais. Atualizar a matriz de implementacao e o changelog quando houver mudanca efetiva.
