@@ -278,3 +278,50 @@ limite de payload e seed reproduzivel. Ainda nao suporta:
 
 Esses cenarios permanecem planejados e nao devem ser marcados como resultados
 executados.
+
+## 12. Resultados locais registrados
+
+Os resultados abaixo sao de testes manuais TX/RX executados em `2026-11-24`.
+Eles foram realizados em UDP sobre `localhost`, com `DISPLAY=:1` e `--display`
+habilitado no RX. Nao sao medições de MeshCore, LoRa ou radio real.
+
+| Campo | Valor comum |
+|---|---|
+| Commit | `0b88475` |
+| Protocolo | MM1 v1 |
+| Transporte | UDP local |
+| Codec | Grayscale packed (`0x01`) |
+| Niveis | 16 |
+| Limite de payload MM1 | 64 bytes |
+| Overhead por pacote | 21 bytes: 19 de cabecalho + 2 de CRC |
+| Corrupcao/perda | 0% no teste |
+| Resultado | Reconstrucao completa; `invalid_packets=0` |
+
+| Imagem | Dados codificados | Mensagens TX/RX | Payload total | Bytes MM1 totais | Overhead total | Saida RX |
+|---|---:|---:|---:|---:|---:|---|
+| `test-images/64x64.jpeg` | 2048 bytes | 32 | 2048 bytes | 2720 bytes | 672 bytes | PNG grayscale `64x64` |
+| `test-images/32x32.jpeg` | 512 bytes | 8 | 512 bytes | 680 bytes | 168 bytes | PNG grayscale `32x32` |
+
+Os valores seguem o empacotamento atual de 4 bits por pixel:
+
+```text
+64 x 64 x 4 / 8 = 2048 bytes
+ceil(2048 / 64) = 32 mensagens
+
+32 x 32 x 4 / 8 = 512 bytes
+ceil(512 / 64) = 8 mensagens
+```
+
+Os logs completos foram gerados durante a execucao em arquivos temporarios
+locais. O resumo observado no TX e no RX foi:
+
+```text
+64x64: messages=32, payload_bytes=2048, message_bytes_total=2720,
+       overhead_bytes=672, invalid_packets=0
+32x32: messages=8, payload_bytes=512, message_bytes_total=680,
+       overhead_bytes=168, invalid_packets=0
+```
+
+Esses ensaios sao smoke tests manuais, nao um executor de benchmark. O resultado
+nao inclui o envelope externo MeshCore nem decide entre `GRP_DATA`, `TXT_MSG` e
+`RAW_CUSTOM`.

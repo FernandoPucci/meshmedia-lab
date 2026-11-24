@@ -56,7 +56,7 @@ que a capacidade existe.
 | Perfil de transmissao parametrizado | Etapa A | Proposto | Nao implementado | `docs/transmission-profile.md`; sem presets no codigo |
 | Transmission Descriptor inline | Etapa A | Proposto | Nao implementado | `docs/transmission-descriptor.md`; sem parser ou serializacao |
 | RGB332 | Etapa A e Fase 7 | Proposto | Nao implementado | ID `0x02` e empacotamento apenas como proposta |
-| Limite de 128 x 128 | Ordem de trabalho / Etapa B | Proposto | Nao implementado | API atual ainda aceita dimensoes maiores |
+| Limite de 128 x 128 | Ordem de trabalho / Etapa B | Implementado | Implementado | `media.py`, `codec/encoder.py`, `tests/unit/test_codec.py` e `tests/unit/test_protocol.py` |
 | Matriz de experimentos | Etapa A | Proposto | Nao implementado | `docs/experiment-matrix.md`; sem executor de benchmarks |
 
 ## Comportamento atual
@@ -73,6 +73,8 @@ O MVP local atualmente funciona desta forma:
    recuperacao de fragmentos ausentes.
 6. O simulador atual pode descartar um pacote ou alterar um bit de um pacote,
    usando uma semente para permitir repeticao do experimento.
+7. `ImageMetadata`, `ImageEncoder` e `EncodedImage` rejeitam largura ou altura
+   fora de `1..128`; as dimensoes continuam independentes.
 
 Consequentemente, uma perda ou uma corrupcao detectada pelo CRC torna a
 transmissao incompleta no MVP. FEC e retransmissao sao alternativas futuras,

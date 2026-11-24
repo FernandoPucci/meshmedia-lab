@@ -5,6 +5,8 @@ from dataclasses import dataclass
 PROTOCOL_VERSION = 1
 MEDIA_TYPE_IMAGE = 0x01
 CODEC_GRAYSCALE_PACKED = 0x01
+MAX_IMAGE_WIDTH = 128
+MAX_IMAGE_HEIGHT = 128
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,10 +21,10 @@ class ImageMetadata:
     codec: int = CODEC_GRAYSCALE_PACKED
 
     def __post_init__(self) -> None:
-        if not 1 <= self.width <= 0xFFFF:
-            raise ValueError("width must fit in 2 bytes")
-        if not 1 <= self.height <= 0xFFFF:
-            raise ValueError("height must fit in 2 bytes")
+        if not 1 <= self.width <= MAX_IMAGE_WIDTH:
+            raise ValueError(f"width must be between 1 and {MAX_IMAGE_WIDTH}")
+        if not 1 <= self.height <= MAX_IMAGE_HEIGHT:
+            raise ValueError(f"height must be between 1 and {MAX_IMAGE_HEIGHT}")
         if not 2 <= self.levels <= 256 or self.levels & (self.levels - 1):
             raise ValueError("levels must be a power of two between 2 and 256")
         if not 0 <= self.version <= 0xFF:

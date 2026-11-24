@@ -32,6 +32,23 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(decoded, packet)
         self.assertEqual(decoded.metadata, metadata)
 
+    def test_metadata_accepts_independent_dimensions_at_128_boundary(self) -> None:
+        self.assertEqual(
+            ImageMetadata(width=128, height=1, levels=16).width,
+            128,
+        )
+        self.assertEqual(
+            ImageMetadata(width=1, height=128, levels=16).height,
+            128,
+        )
+
+    def test_metadata_rejects_dimensions_above_128(self) -> None:
+        with self.assertRaisesRegex(ValueError, "width must be between 1 and 128"):
+            ImageMetadata(width=129, height=1, levels=16)
+
+        with self.assertRaisesRegex(ValueError, "height must be between 1 and 128"):
+            ImageMetadata(width=1, height=129, levels=16)
+
     def test_packet_rejects_corruption(self) -> None:
         raw = bytearray(
             Packet(

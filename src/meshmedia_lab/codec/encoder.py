@@ -3,7 +3,12 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from meshmedia_lab.media import ImageMetadata
+from meshmedia_lab.media import (
+    MAX_IMAGE_HEIGHT,
+    MAX_IMAGE_WIDTH,
+    ImageMetadata,
+)
+
 
 class ImageEncodingError(ValueError):
     """Raised when a pixel matrix cannot be encoded."""
@@ -19,8 +24,14 @@ class EncodedImage:
     data: bytes
 
     def __post_init__(self) -> None:
-        if self.width <= 0 or self.height <= 0:
-            raise ImageEncodingError("image dimensions must be positive")
+        if not 1 <= self.width <= MAX_IMAGE_WIDTH:
+            raise ImageEncodingError(
+                f"image width must be between 1 and {MAX_IMAGE_WIDTH}"
+            )
+        if not 1 <= self.height <= MAX_IMAGE_HEIGHT:
+            raise ImageEncodingError(
+                f"image height must be between 1 and {MAX_IMAGE_HEIGHT}"
+            )
         if self.levels not in (2, 4, 8, 16, 256):
             raise ImageEncodingError("levels must be 2, 4, 8, 16 or 256")
         expected_size = (self.width * self.height * self.bits_per_pixel + 7) // 8
@@ -46,8 +57,14 @@ class ImageEncoder:
     """Resize, quantize and pack an 8-bit grayscale image."""
 
     def __init__(self, width: int = 32, height: int = 32, levels: int = 16) -> None:
-        if width <= 0 or height <= 0:
-            raise ImageEncodingError("target dimensions must be positive")
+        if not 1 <= width <= MAX_IMAGE_WIDTH:
+            raise ImageEncodingError(
+                f"target width must be between 1 and {MAX_IMAGE_WIDTH}"
+            )
+        if not 1 <= height <= MAX_IMAGE_HEIGHT:
+            raise ImageEncodingError(
+                f"target height must be between 1 and {MAX_IMAGE_HEIGHT}"
+            )
         if levels not in (2, 4, 8, 16, 256):
             raise ImageEncodingError("levels must be 2, 4, 8, 16 or 256")
         self.width = width

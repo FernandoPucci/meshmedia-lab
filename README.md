@@ -145,10 +145,10 @@ real.
 ### Estado atual do MM1
 
 O formato binario inicial e o protocolo versao `1`. Atualmente o laboratorio ja
-possui encoder e decoder grayscale, fragmentacao, reassemblagem fora de ordem,
-cabecalho com metadados e CRC-16/CCITT-FALSE por pacote. O transporte validado
-e local, usando UDP ou memoria, e o canal pode simular perda e corrupcao
-independentes por pacote.
+possui encoder e decoder grayscale limitado a 128 x 128, fragmentacao,
+reassemblagem fora de ordem, cabecalho com metadados e CRC-16/CCITT-FALSE por
+pacote. O transporte validado e local, usando UDP ou memoria, e o canal pode
+simular perda e corrupcao independentes por pacote.
 
 Ainda nao estao implementados FEC, Reed-Solomon, ACK/NACK, retransmissao
 seletiva, transmissao progressiva ou um adaptador MeshCore. Essas tecnicas

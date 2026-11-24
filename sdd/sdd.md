@@ -225,8 +225,9 @@ Possíveis resoluções iniciais:
 - 128 × 128
 
 Nesta etapa, cada dimensao deve ser independente e respeitar o limite inicial
-de 128 pixels. Dimensoes maiores e tiling sao futuros e nao fazem parte do
-protocolo ou da implementacao atual.
+de 128 pixels. A API grayscale atual aplica essa validacao em metadata e
+encoder. Dimensoes maiores e tiling sao futuros e nao fazem parte do protocolo
+ou da implementacao atual.
 
 O sistema deverá permitir experimentar diferentes resoluções dentro desse
 limite e avaliar o equilíbrio entre:
@@ -1328,8 +1329,9 @@ Comparar retransmissão com FEC.
 Grayscale packed e o caminho implementado. O registro de parametros e a
 proposta RGB332 estao em [`docs/transmission-profile.md`](../docs/transmission-profile.md).
 
-O limite inicial de 128 x 128 e uma regra de especificacao ainda nao aplicada
-pela API atual.
+O limite inicial de 128 x 128 e aplicado pela API grayscale atual, com testes
+para dimensoes minimas, nao quadradas, limites de 128 pixels e rejeicao de
+dimensoes maiores.
 
 Experimentar:
 
@@ -1601,8 +1603,16 @@ Precisaremos investigar:
 - É possível transmitir refinamentos progressivos?
 - Como implementar buffers no firmware?
 - Como transportar payload binário através das interfaces MeshCore existentes?
+- Para um canal privado, `GRP_DATA` deve ser preferido a `TXT_MSG` ou ambos
+  precisam ser comparados no firmware identificado?
 - Será necessário customizar o firmware?
 - Qual será o mecanismo de descoberta e identificação de transmissões?
+
+O `GRP_DATA` e o candidato natural para transportar bytes MM1 em um canal
+privado, enquanto `TXT_MSG` permanece uma alternativa textual a ser analisada.
+Essa escolha ainda nao foi aprovada e nao autoriza qualquer adaptador MeshCore.
+O material criptografico deve permanecer sob responsabilidade do MeshCore; nao
+deve ser transmitido no payload MM1.
 
 O CRC atual ja possui uma decisao registrada: CRC-16/CCITT-FALSE por pacote,
 com os parametros descritos em [`docs/error-control.md`](../docs/error-control.md)
