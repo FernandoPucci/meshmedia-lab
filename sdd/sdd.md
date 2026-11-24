@@ -5,7 +5,7 @@
 - **Abordagem:** Specification-Driven Development (SDD)
 - **Objetivo:** Desenvolver um protocolo eficiente para transmissão de imagens e, futuramente, áudio através de redes MeshCore/LoRa.
 - **Nome do protocolo:** MM1 (MeshMedia v1)
-- **Revisão do SDD:** 0.3.0-draft
+- **Revisão do SDD:** 0.4.0-draft
 - **Versão da implementação de referência:** 0.1.0
 - **Versão do protocolo binário:** 1
 - **Conformidade:** Parcial
@@ -1681,3 +1681,136 @@ Após validação, o protocolo poderá ser adaptado para MeshCore, incluindo eve
 **Projeto:** MeshMedia Lab
 
 **Objetivo:** Transmitir representações úteis de imagens e áudio através de redes Mesh de baixa largura de banda, com máxima eficiência, resiliência e mínimo overhead.
+
+
+---
+
+# 29. Aplicação web local TX/RX — arquitetura-alvo
+
+**Status:** PLANEJADO; objetivo arquitetural de longo prazo, não implementado.
+**Rastreabilidade:** [Issue #39 — Aplicação web local para transmissão e recepção de imagens MM1 via MeshCore](https://github.com/FernandoPucci/meshmedia-lab/issues/39).
+
+O objetivo de produto do MeshMedia Lab é oferecer uma aplicação web servida
+localmente em cada estação, permitindo preparar, transmitir, receber e
+visualizar imagens MM1 sem modificar inicialmente o firmware MeshCore da
+Heltec V3 nem o aplicativo oficial.
+
+Duas estações independentes participam do fluxo. Cada uma executa sua própria
+instância local da aplicação e conecta uma Heltec V3 por uma porta serial. Uma
+instância pode atuar como transmissor (TX) e a outra como receptor (RX).
+
+## 29.1 Estação transmissora
+
+A interface TX deverá permitir:
+
+1. Conectar/selecionar a porta serial da Heltec V3.
+2. Carregar uma imagem local e apresentar uma pré-visualização.
+3. Selecionar dimensões de saída, inicialmente dentro do limite vigente de
+   128 x 128 pixels (por exemplo, 32 x 32 ou 64 x 64).
+4. Selecionar grayscale/preto e branco ou representação colorida, somente
+   quando o codec correspondente estiver implementado e habilitado.
+5. Configurar parâmetros explícitos de codificação e payload.
+6. Selecionar o canal/grupo privado MeshCore de destino.
+7. Calcular uma estimativa antes do envio, usando os bytes efetivamente
+   produzidos pelo codec, overhead MM1, fragmentação e limites conhecidos do
+   adaptador. Exibir pelo menos tamanho codificado e quantidade estimada de
+   mensagens; distinguir estimativas de medições reais.
+8. Solicitar confirmação e iniciar a transmissão, apresentando progresso,
+   contadores e erros.
+
+A estimativa não deve usar apenas uma fórmula aproximada baseada na resolução:
+deve executar o caminho de preparação/codificação e considerar os limites
+efetivos de cada camada, inclusive eventuais cabeçalhos e restrições do
+transporte MeshCore.
+
+## 29.2 Estação receptora
+
+A interface RX deverá permitir:
+
+1. Conectar/selecionar a porta serial da Heltec V3 receptora.
+2. Monitorar mensagens recebidas no canal privado configurado.
+3. Identificar pacotes MM1 e validar integridade antes da reassemblagem.
+4. Reassemblar fragmentos e decodificar a imagem usando os metadados recebidos,
+   sem depender de configurações ocultas compartilhadas com o TX.
+5. Apresentar a imagem reconstruída na própria página web, com progresso,
+   estado da transmissão e diagnóstico de fragmentos ausentes ou inválidos.
+6. Permitir salvar/exportar a imagem reconstruída.
+
+## 29.3 Arquitetura lógica
+
+A aplicação deverá separar interface, serviço local, protocolo e transporte:
+
+```mermaid
+flowchart LR
+    subgraph TX["Estação TX — localhost"]
+        TUI["Interface web TX<br/>upload, preview e parâmetros"]
+        TAPP["Serviço local TX<br/>codec, estimativa e MM1"]
+        TSER["Adaptador serial/MeshCore"]
+        TUI --> TAPP --> TSER
+    end
+
+    subgraph RADIO["Rede MeshCore"]
+        CH["Canal/grupo privado<br/>criptografia MeshCore"]
+    end
+
+    subgraph RX["Estação RX — localhost"]
+        RSER["Adaptador serial/MeshCore"]
+        RAPP["Serviço local RX<br/>validação, reassemblagem e codec"]
+        RUI["Interface web RX<br/>progresso e imagem reconstruída"]
+        RSER --> RAPP --> RUI
+    end
+
+    TSER <--> CH <--> RSER
+```
+
+A interface web deverá ser servida em localhost. O serviço/backend local será
+responsável por acessar a porta serial, executar o pipeline MM1 e fornecer
+estado e resultados à interface. Preferir serial gerenciada pelo backend, em
+vez de depender exclusivamente da Web Serial API, cuja disponibilidade varia
+entre navegadores e plataformas.
+
+O desenho deverá permitir duas instâncias independentes, cada uma com sua
+própria porta serial e estado de transmissão/recepção. A interface não deverá
+acoplar o codec ou o protocolo a uma tecnologia específica de frontend.
+
+## 29.4 Canal privado e material criptográfico
+
+A transmissão deverá utilizar um canal/grupo privado do MeshCore. A criptografia
+de enlace e o gerenciamento da chave devem permanecer sob responsabilidade do
+MeshCore sempre que as interfaces existentes permitirem.
+
+A aplicação não deverá registrar chaves em logs, URLs, relatórios ou artefatos
+de diagnóstico. A preferência é selecionar um canal já configurado no
+dispositivo. Se a integração exigir fornecer ou manipular a chave pela
+aplicação, essa alternativa deverá passar por revisão explícita de segurança,
+compatibilidade e comportamento do firmware antes da implementação.
+
+O protocolo MM1 transporta os dados de mídia; ele não deve transportar nem
+substituir o material criptográfico do MeshCore.
+
+## 29.5 Restrições e dependências
+
+- A aplicação depende da validação da comunicação serial, do canal privado e do
+  adaptador MeshCore previstos na Etapa E e na Issue #8, incluindo as atividades
+  relacionadas de bancada e TX/RX.
+- A integração deve respeitar os limites reais de payload, serialização,
+  roteamento e comportamento do MeshCore. O limite do frame de rádio não deve
+  ser confundido com o payload disponível à aplicação.
+- Preservar o wire format MM1 v1. A interface não justifica alteração
+  incompatível no protocolo.
+- Não apresentar RGB332, FEC/Reed-Solomon, ACK/NACK ou transmissão progressiva
+  como capacidades disponíveis antes de suas implementações e validações.
+- Não customizar inicialmente firmware MeshCore nem o aplicativo oficial. Se
+  as interfaces existentes não permitirem o fluxo necessário, documentar a
+  limitação e apresentar alternativas antes de alterar firmware.
+- Tiling acima de 128 x 128 e refinamento progressivo continuam fora do escopo
+  inicial desta aplicação.
+
+## 29.6 Critério de conclusão do objetivo
+
+O objetivo será demonstrado quando duas instâncias locais independentes,
+conectadas por serial a duas Heltec V3 com firmware MeshCore original, puderem
+transmitir uma imagem MM1 por um canal privado e a estação RX reconstruir e
+exibir a imagem na interface web. O ensaio deverá registrar configuração,
+quantidade de mensagens, bytes, tempos, falhas e limitações observadas,
+separando claramente medições de rádio real de estimativas e testes locais.
