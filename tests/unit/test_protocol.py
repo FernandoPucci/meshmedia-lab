@@ -1,6 +1,6 @@
 import unittest
 
-from meshmedia_lab.media import ImageMetadata
+from meshmedia_lab.media import CODEC_RGB332, ImageMetadata
 from meshmedia_lab.protocol.crc import crc16
 from meshmedia_lab.protocol.fragmenter import Fragmenter
 from meshmedia_lab.protocol.packet import (
@@ -32,6 +32,27 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(decoded, packet)
         self.assertEqual(decoded.metadata, metadata)
 
+    def test_rgb332_packet_round_trip_keeps_v1_header(self) -> None:
+        metadata = ImageMetadata(
+            width=32,
+            height=32,
+            levels=0,
+            codec=CODEC_RGB332,
+        )
+        packet = Packet(
+            metadata=metadata,
+            image_id=38,
+            fragment_number=0,
+            total_fragments=1,
+            payload=b"rgb332",
+            flags=FLAG_FIRST_FRAGMENT | FLAG_LAST_FRAGMENT,
+        )
+
+        decoded = Packet.from_bytes(packet.to_bytes())
+
+        self.assertEqual(decoded, packet)
+        self.assertEqual(len(packet.to_bytes()), 27)
+
     def test_metadata_accepts_independent_dimensions_at_128_boundary(self) -> None:
         self.assertEqual(
             ImageMetadata(width=128, height=1, levels=16).width,
@@ -48,6 +69,26 @@ class ProtocolTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "height must be between 1 and 128"):
             ImageMetadata(width=1, height=129, levels=16)
+
+    def test_rgb332_metadata_uses_zero_levels(self) -> None:
+        metadata = ImageMetadata(
+            width=32,
+            height=32,
+            levels=0,
+            codec=CODEC_RGB332,
+        )
+
+        self.assertEqual(metadata.codec, CODEC_RGB332)
+        self.assertEqual(metadata.levels, 0)
+
+    def test_rgb332_metadata_rejects_grayscale_levels(self) -> None:
+        with self.assertRaisesRegex(ValueError, "RGB332.*levels=0"):
+            ImageMetadata(
+                width=32,
+                height=32,
+                levels=16,
+                codec=CODEC_RGB332,
+            )
 
     def test_packet_rejects_corruption(self) -> None:
         raw = bytearray(

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 PROTOCOL_VERSION = 1
 MEDIA_TYPE_IMAGE = 0x01
 CODEC_GRAYSCALE_PACKED = 0x01
+CODEC_RGB332 = 0x02
 MAX_IMAGE_WIDTH = 128
 MAX_IMAGE_HEIGHT = 128
 
@@ -25,8 +26,14 @@ class ImageMetadata:
             raise ValueError(f"width must be between 1 and {MAX_IMAGE_WIDTH}")
         if not 1 <= self.height <= MAX_IMAGE_HEIGHT:
             raise ValueError(f"height must be between 1 and {MAX_IMAGE_HEIGHT}")
-        if not 2 <= self.levels <= 256 or self.levels & (self.levels - 1):
-            raise ValueError("levels must be a power of two between 2 and 256")
+        if self.codec == CODEC_RGB332:
+            if self.levels != 0:
+                raise ValueError("RGB332 metadata must use levels=0")
+        elif not 2 <= self.levels <= 256 or self.levels & (self.levels - 1):
+            raise ValueError(
+                "levels must be a power of two between 2 and 256, "
+                "or 0 for RGB332"
+            )
         if not 0 <= self.version <= 0xFF:
             raise ValueError("version must fit in 1 byte")
         if not 0 <= self.media_type <= 0xFF:

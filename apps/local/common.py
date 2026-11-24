@@ -85,6 +85,7 @@ def log_packet(
     logger.debug(
         "%s msg=%d/%d message_bytes=%d\n"
         "  image_id=%d\n"
+        "  codec=0x%02x\n"
         "  flags=0x%02x\n"
         "  resolution=%dx%d\n"
         "  levels=%d\n"
@@ -97,6 +98,7 @@ def log_packet(
         packet.total_fragments,
         len(raw),
         packet.image_id,
+        packet.metadata.codec,
         packet.flags,
         packet.metadata.width,
         packet.metadata.height,

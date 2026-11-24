@@ -39,7 +39,9 @@ apps/
     ├── common.py       # Parser de resolucao, logs e contadores
     ├── image_io.py     # Integracao Pillow
     ├── rx.py           # Processo receptor
-    └── tx.py           # Processo transmissor
+    ├── tx.py           # Processo transmissor
+    ├── rgb332_rx.py    # RX UDP experimental separado do MM1
+    └── rgb332_tx.py    # TX UDP experimental separado do MM1
 ```
 
 O transporte UDP reutilizavel fica no nucleo em
@@ -100,6 +102,25 @@ PYTHONPATH=src:. python3 -m apps.local.tx \
 O TX usa a imagem original como entrada, converte para grayscale e deixa o
 `ImageEncoder` fazer o redimensionamento para `--resolution`.
 
+O par `rgb332_tx`/`rgb332_rx` usa um enquadramento experimental separado do
+MM1. Para testar o caminho MM1 com selecao de codec, use `apps.local.tx` e
+`apps.local.rx` com `--codec grayscale` ou `--codec rgb332`.
+
+Exemplo RGB332 no caminho MM1:
+
+```bash
+PYTHONPATH=src:. python3 -m apps.local.tx \
+  --image caminho/para/imagem.jpg \
+  --port 9000 \
+  --resolution 32x32 \
+  --codec rgb332 \
+  --payload 64 \
+  --image-id 38
+```
+
+O RX seleciona o decoder pelo metadata recebido. `--codec` permanece uma
+opcao do TX; o default e `grayscale`.
+
 ## Opcoes do TX
 
 | Opcao | Padrao | Descricao |
@@ -108,13 +129,15 @@ O TX usa a imagem original como entrada, converte para grayscale e deixa o
 | `--host` | `127.0.0.1` | Endereco do RX. |
 | `--port` | `9000` | Porta UDP do RX. |
 | `--resolution` | `32x32` | Resolucao alvo no formato `LARGURAxALTURA`. |
+| `--codec` | `grayscale` | `grayscale` ou `rgb332`. |
 | `--levels` | `16` | Quantidade de tons de grayscale. |
 | `--payload` | `64` | Bytes de payload por pacote. |
 | `--image-id` | `1` | Identificador da transmissao. |
 | `--log-level` | `INFO` | Nivel `DEBUG`, `INFO`, `WARNING` ou `ERROR`. |
 | `--log-file` | vazio | Arquivo opcional para os logs. |
 
-Os niveis aceitos atualmente sao `2`, `4`, `8`, `16` e `256`.
+Os niveis aceitos atualmente sao `2`, `4`, `8`, `16` e `256`. O parametro
+`--levels` se aplica somente ao grayscale; RGB332 usa canais fixos `3/3/2`.
 
 ## Opcoes do RX
 

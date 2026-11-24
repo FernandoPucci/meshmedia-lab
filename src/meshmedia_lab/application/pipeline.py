@@ -1,13 +1,20 @@
 """Local end-to-end image transmission pipeline."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from meshmedia_lab.codec.decoder import ImageDecoder
 from meshmedia_lab.codec.encoder import EncodedImage, ImageEncoder
+from meshmedia_lab.codec.rgb332 import EncodedRgb332Image, Rgb332Decoder, Rgb332Encoder
+from meshmedia_lab.media import CODEC_GRAYSCALE_PACKED, CODEC_RGB332
 from meshmedia_lab.protocol.fragmenter import Fragmenter
 from meshmedia_lab.protocol.reassembler import Reassembler, ReassemblyError
 from meshmedia_lab.simulation.channel import ChannelSimulator
 from meshmedia_lab.transport.receiver import Receiver
+
+GrayImage = tuple[tuple[int, ...], ...]
+RgbImage = tuple[tuple[tuple[int, int, int], ...], ...]
+ImagePixels = GrayImage | RgbImage
 
 
 class TransmissionError(RuntimeError):
@@ -18,7 +25,7 @@ class TransmissionError(RuntimeError):
 class TransmissionResult:
     """Measurements and output from one local transmission."""
 
-    image: tuple[tuple[int, ...], ...]
+    image: ImagePixels
     encoded_size: int
     packets_sent: int
     packets_received: int
@@ -29,17 +36,32 @@ class ImagePipeline:
 
     def __init__(
         self,
-        encoder: ImageEncoder | None = None,
-        decoder: ImageDecoder | None = None,
+        encoder: ImageEncoder | Rgb332Encoder | None = None,
+        decoder: ImageDecoder | Rgb332Decoder | None = None,
         fragmenter: Fragmenter | None = None,
+        *,
+        codec: str = "grayscale",
+        width: int = 32,
+        height: int = 32,
+        levels: int = 16,
     ) -> None:
-        self.encoder = encoder or ImageEncoder()
-        self.decoder = decoder or ImageDecoder()
+        if codec not in ("grayscale", "rgb332"):
+            raise ValueError("codec must be 'grayscale' or 'rgb332'")
+        if encoder is None:
+            encoder = (
+                ImageEncoder(width=width, height=height, levels=levels)
+                if codec == "grayscale"
+                else Rgb332Encoder(width=width, height=height)
+            )
+        if decoder is None:
+            decoder = ImageDecoder() if codec == "grayscale" else Rgb332Decoder()
+        self.encoder = encoder
+        self.decoder = decoder
         self.fragmenter = fragmenter or Fragmenter()
 
     def transmit(
         self,
-        pixels: tuple[tuple[int, ...], ...] | list[list[int]],
+        pixels: Sequence[Sequence[int]] | Sequence[Sequence[tuple[int, int, int]]],
         *,
         image_id: int = 1,
         channel: ChannelSimulator | None = None,
@@ -72,12 +94,23 @@ class ImagePipeline:
         if reassembler.metadata is None:
             raise TransmissionError("transmission completed without image metadata")
 
-        reconstructed = EncodedImage(
-            width=reassembler.metadata.width,
-            height=reassembler.metadata.height,
-            levels=reassembler.metadata.levels,
-            data=reassembler.assemble(),
-        )
+        if reassembler.metadata.codec == CODEC_GRAYSCALE_PACKED:
+            reconstructed = EncodedImage(
+                width=reassembler.metadata.width,
+                height=reassembler.metadata.height,
+                levels=reassembler.metadata.levels,
+                data=reassembler.assemble(),
+            )
+        elif reassembler.metadata.codec == CODEC_RGB332:
+            reconstructed = EncodedRgb332Image(
+                width=reassembler.metadata.width,
+                height=reassembler.metadata.height,
+                data=reassembler.assemble(),
+            )
+        else:
+            raise TransmissionError(
+                f"unsupported image codec: {reassembler.metadata.codec}"
+            )
         image = self.decoder.decode(reconstructed)
 
         return TransmissionResult(

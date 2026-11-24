@@ -150,6 +150,10 @@ reassemblagem fora de ordem, cabecalho com metadados e CRC-16/CCITT-FALSE por
 pacote. O transporte validado e local, usando UDP ou memoria, e o canal pode
 simular perda e corrupcao independentes por pacote.
 
+O repositorio tambem contem o codec RGB332 aprovado para `32x32` e `64x64`.
+As aplicacoes locais permitem selecionar `--codec grayscale` ou
+`--codec rgb332`; grayscale continua sendo o default.
+
 Ainda nao estao implementados FEC, Reed-Solomon, ACK/NACK, retransmissao
 seletiva, transmissao progressiva ou um adaptador MeshCore. Essas tecnicas
 aparecem no SDD como propostas e experimentos, nao como capacidades existentes.
@@ -170,6 +174,8 @@ Documentacao complementar:
   de descritor compacto no primeiro fragmento MM1 v1.
 - [`docs/experiment-matrix.md`](docs/experiment-matrix.md): cenarios, metricas
   e separacao entre simulacao e radio real.
+- [`docs/rgb332-experiment.md`](docs/rgb332-experiment.md): metodo, resultados
+  locais e artefatos visuais do experimento RGB332.
 - [`docs/meshcore-reference.md`](docs/meshcore-reference.md): formato MeshCore, limites de pacote e encaixe do MM1.
 - [`docs/error-control.md`](docs/error-control.md): CRC, FEC, Reed-Solomon e plano de afericao.
 - [`docs/references.md`](docs/references.md): referencias academicas, normativas e tecnicas.
@@ -270,6 +276,7 @@ Parametros importantes:
 
 - `--image`: imagem de entrada aceita pelo Pillow.
 - `--resolution`: resolucao alvo no formato `LARGURAxALTURA`.
+- `--codec`: `grayscale` ou `rgb332`; o default e `grayscale`.
 - `--levels`: quantidade de tons de grayscale.
 - `--payload`: quantidade maxima de bytes de dados por pacote.
 - `--image-id`: identificador da transmissao.

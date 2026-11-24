@@ -6,11 +6,12 @@ import argparse
 import logging
 
 from meshmedia_lab.codec.encoder import ImageEncoder
+from meshmedia_lab.codec.rgb332 import Rgb332Encoder
 from meshmedia_lab.protocol.fragmenter import Fragmenter
 from meshmedia_lab.transport.udp import UdpSender
 
 from .common import PacketStats, configure_logging, log_packet, log_summary, parse_resolution
-from .image_io import load_grayscale_pixels
+from .image_io import load_grayscale_pixels, load_rgb_pixels
 
 LOGGER = logging.getLogger("meshmedia.local.tx")
 
@@ -22,11 +23,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--port", type=int, default=9000, help="RX UDP port")
     parser.add_argument("--resolution", default="32x32", help="target resolution")
     parser.add_argument(
+        "--codec",
+        choices=("grayscale", "rgb332"),
+        default="grayscale",
+        help="image codec; grayscale is the default",
+    )
+    parser.add_argument(
         "--levels",
         type=int,
         default=16,
         choices=(2, 4, 8, 16, 256),
-        help="grayscale levels",
+        help="grayscale levels; ignored when codec is rgb332",
     )
     parser.add_argument(
         "--payload",
@@ -49,25 +56,35 @@ def main(argv: list[str] | None = None) -> int:
     configure_logging(args.log_level, args.log_file)
     width, height = parse_resolution(args.resolution)
 
-    pixels = load_grayscale_pixels(args.image)
+    if args.codec == "grayscale":
+        pixels = load_grayscale_pixels(args.image)
+        encoded = ImageEncoder(width=width, height=height, levels=args.levels).encode(
+            pixels
+        )
+    else:
+        pixels = load_rgb_pixels(args.image)
+        encoded = Rgb332Encoder(width=width, height=height).encode(pixels)
     LOGGER.info(
-        "loaded image path=%s source_resolution=%dx%d target_resolution=%dx%d",
+        "loaded image path=%s codec=%s source_resolution=%dx%d "
+        "target_resolution=%dx%d",
         args.image,
+        args.codec,
         len(pixels[0]),
         len(pixels),
         width,
         height,
     )
 
-    encoded = ImageEncoder(width=width, height=height, levels=args.levels).encode(pixels)
     packets = Fragmenter(max_payload_size=args.payload).fragment(
         encoded.data,
         image_id=args.image_id,
         metadata=encoded.metadata,
     )
     LOGGER.info(
-        "prepared image_id=%d encoded_bytes=%d messages=%d payload_limit=%d",
+        "prepared image_id=%d codec=%s encoded_bytes=%d messages=%d "
+        "payload_limit=%d",
         args.image_id,
+        args.codec,
         len(encoded.data),
         len(packets),
         args.payload,
