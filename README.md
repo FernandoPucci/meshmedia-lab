@@ -2,6 +2,16 @@
 
 ![MeshMedia Lab - transmissao de midia em redes LoRa e MeshCore](assets/MeshMediaLab.png)
 
+O MeshMedia Lab e uma iniciativa brasileira, cooperativa e de codigo aberto.
+O projeto e construido de forma colaborativa para que ideias, experimentos,
+referencias e decisoes tecnicas possam ser compartilhados e revisados pela
+comunidade.
+
+Ferramentas de inteligencia artificial participam como apoio a pesquisa,
+documentacao, analise e desenvolvimento. A IA nao substitui a revisao humana:
+as decisoes de arquitetura, os experimentos, os testes e a responsabilidade
+pelo codigo permanecem com os colaboradores do projeto.
+
 ## MM1 - MeshMedia v1
 
 O MM1 (MeshMedia v1) e o protocolo experimental que estamos criando para
