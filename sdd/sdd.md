@@ -27,7 +27,7 @@ O projeto usa tres identificadores independentes:
 |---|---|
 | Versao do software | Evolucao do pacote Python e de sua API. Atualmente `0.1.0`. |
 | Versao do protocolo | Compatibilidade do formato binario transportado. Atualmente `1`. |
-| Revisao do SDD | Evolucao dos requisitos, decisoes e propostas. Atualmente `0.3.0-draft`. |
+| Revisao do SDD | Evolucao dos requisitos, decisoes e propostas. Atualmente `0.4.0-draft`. |
 
 Uma alteracao editorial nao altera a versao do software nem a versao do
 protocolo. Uma alteracao incompativel no formato ou no significado dos pacotes
@@ -1743,8 +1743,9 @@ A interface TX deverá permitir:
 2. Carregar uma imagem local e apresentar uma pré-visualização.
 3. Selecionar dimensões de saída, inicialmente dentro do limite vigente de
    128 x 128 pixels (por exemplo, 32 x 32 ou 64 x 64).
-4. Selecionar grayscale/preto e branco ou representação colorida, somente
-   quando o codec correspondente estiver implementado e habilitado.
+4. Selecionar grayscale/preto e branco ou representação colorida, respeitando
+   os limites específicos de cada codec. No estado atual, grayscale aceita até
+   128 x 128 e RGB332 até 64 x 64.
 5. Configurar parâmetros explícitos de codificação e payload.
 6. Selecionar o canal/grupo privado MeshCore de destino.
 7. Calcular uma estimativa antes do envio, usando os bytes efetivamente
@@ -1834,8 +1835,10 @@ substituir o material criptográfico do MeshCore.
   ser confundido com o payload disponível à aplicação.
 - Preservar o wire format MM1 v1. A interface não justifica alteração
   incompatível no protocolo.
-- Não apresentar RGB332, FEC/Reed-Solomon, ACK/NACK ou transmissão progressiva
-  como capacidades disponíveis antes de suas implementações e validações.
+- RGB332 já está implementado no pipeline local, com limite atual de 64 x 64.
+  A interface deve refletir os codecs e limites efetivamente disponíveis.
+  FEC/Reed-Solomon, ACK/NACK e transmissão progressiva continuam indisponíveis
+  até suas respectivas implementações e validações.
 - Não customizar inicialmente firmware MeshCore nem o aplicativo oficial. Se
   as interfaces existentes não permitirem o fluxo necessário, documentar a
   limitação e apresentar alternativas antes de alterar firmware.
