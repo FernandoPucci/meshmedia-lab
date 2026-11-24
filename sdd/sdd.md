@@ -207,8 +207,40 @@ Portanto, uma imagem 64 × 64 pixels com 16 tons de cinza ocupa aproximadamente 
 
 O registro de codecs, os identificadores e a forma de empacotamento estao
 consolidados em [`docs/transmission-profile.md`](../docs/transmission-profile.md).
-Grayscale packed permanece o codec de referencia implementado; RGB332 e uma
-proposta explicita e ainda nao possui codigo.
+Grayscale packed permanece o codec de referencia implementado; RGB332 foi
+aprovado como segundo codec da implementacao de referencia.
+
+### 4.2.1 Experimento RGB332 da Issue #38
+
+O experimento RGB332 foi aprovado como codec da implementacao de referencia
+apos a validacao visual humana. Ele nao fecha a implementacao definitiva da
+Issue #16, mas passa a existir como codec selecionavel sem alterar a estrutura
+binaria do protocolo MM1 v1.
+
+O contrato experimental e:
+
+- um byte por pixel na ordem `RRRGGGBB`;
+- pixels em ordem row-major;
+- canais de entrada RGB em `0..255`, sem alpha;
+- quantizacao `floor(red * 8 / 256)`, `floor(green * 8 / 256)` e
+  `floor(blue * 4 / 256)`;
+- reconstrução pelos niveis fixos `[0, 36, 73, 109, 146, 182, 219, 255]`
+  para vermelho/verde e `[0, 85, 170, 255]` para azul;
+- resize por amostragem inteira com a mesma regra do grayscale;
+- dimensoes independentes dentro de `1..64` na API RGB332;
+- cenarios executados somente em `32x32` e `64x64`;
+- nenhuma compressao, padding, FEC ou transmissao progressiva.
+
+O `codec_id = 0x02` passa a integrar o registro de codecs. No envelope MM1 v1,
+`levels=0` e reservado para indicar que esse campo nao se aplica ao RGB332;
+nenhum byte ou campo do cabecalho foi alterado. O round-trip pode ocorrer em
+memoria, no caminho MM1 local ou no harness UDP experimental, cujo
+enquadramento proprio nao e MM1. A contagem de fragmentos e o custo do
+envelope MM1 sao calculados com payload de 64 bytes.
+
+As aplicacoes devem permitir selecionar explicitamente `grayscale` ou `rgb332`.
+O default continua sendo grayscale e os parametros `levels` nao devem ser
+aplicados ao RGB332.
 
 ---
 
@@ -1326,8 +1358,10 @@ Comparar retransmissão com FEC.
 
 ## Fase 7 — Codec (PARCIAL)
 
-Grayscale packed e o caminho implementado. O registro de parametros e a
-proposta RGB332 estao em [`docs/transmission-profile.md`](../docs/transmission-profile.md).
+Grayscale packed e RGB332 sao os codecs implementados nesta etapa. O registro
+de parametros e a especificacao do RGB332 estao em
+[`docs/transmission-profile.md`](../docs/transmission-profile.md). O harness
+UDP separado continua experimental, mas o caminho MM1 local usa `codec=0x02`.
 
 O limite inicial de 128 x 128 e aplicado pela API grayscale atual, com testes
 para dimensoes minimas, nao quadradas, limites de 128 pixels e rejeicao de
@@ -1621,13 +1655,15 @@ silenciosamente a escolha do algoritmo.
 
 # 27. Próximo passo
 
-O proximo passo imediato e revisar humanamente a Etapa A e aprovar ou ajustar a
-extensao de descritor dentro do MM1 v1. Nenhum wire format novo deve ser
-implementado antes dessa revisao.
+O proximo passo imediato continua sendo revisar humanamente a Etapa A e aprovar
+ou ajustar a extensao de descritor dentro do MM1 v1. Nenhum wire format novo
+deve ser implementado antes dessa revisao. A aprovacao do RGB332 nao depende do
+descritor, pois usa somente os campos existentes do envelope v1.
 
 Depois da revisao, o trabalho de implementacao deve continuar em incrementos
-separados, sem iniciar RGB332, Reed-Solomon ou integracao MeshCore
-automaticamente.
+separados, sem iniciar Reed-Solomon ou integracao MeshCore automaticamente. O
+codec RGB332 aprovado permanece selecionavel no pipeline local conforme o
+contrato da secao 4.2.1.
 
 O objetivo de longo prazo continua sendo criar e validar o projeto de
 laboratorio independente do MeshCore.

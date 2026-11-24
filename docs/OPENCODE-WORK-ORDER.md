@@ -33,7 +33,9 @@ Este documento complementa o SDD e nao o substitui. Antes de alterar codigo, con
 - Manter grayscale como caminho de referencia existente.
 - Projetar identificadores explicitos e estaveis para os codecs, evitando depender de configuracao escondida no transmissor.
 - Preparar a arquitetura para grayscale e colorido.
-- RGB332 e um candidato inicial para representacao colorida compacta; documentar os parametros e a forma de empacotamento antes da implementacao.
+- RGB332 foi o candidato inicial para representacao colorida compacta; apos a
+  validacao da Issue #38, seus parametros e forma de empacotamento estao
+  implementados sem alterar o layout MM1 v1.
 - O receptor deve conseguir interpretar a representacao a partir dos metadados/descritor recebidos.
 - Compressao (incluindo RLE) deve ser identificada separadamente do formato de cor/codec, caso essa separacao seja adotada no desenho. Nao presumir que RLE ja esteja implementado.
 
@@ -115,7 +117,7 @@ O protocolo e os codecs nao devem depender de UDP ou MeshCore.
 1. Preservar o codec grayscale atual e seus testes.
 2. Ajustar a API para largura e altura independentes, com limite maximo de 128 x 128.
 3. Implementar testes para dimensoes minimas, nao quadradas, 128 x 128 e rejeicao de dimensoes acima do limite.
-4. Implementar RGB332 somente depois de especificar identificador, ordem dos canais, empacotamento e reconstrucao.
+4. Implementar RGB332 somente depois de especificar identificador, ordem dos canais, empacotamento e reconstrucao. Essa condicao foi satisfeita pela Issue #38.
 5. Testar round-trip, limites, dados truncados e identificadores desconhecidos.
 
 **Criterio de aceite:** TX e RX interpretam a representacao pelos metadados/descritor; testes automatizados cobrem grayscale e RGB332; nenhum teste ou exemplo sugere suporte a resolucoes maiores que 128 x 128 nesta fase.

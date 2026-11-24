@@ -10,7 +10,7 @@ mas esta matriz e a referencia para distinguir proposta, plano e implementacao.
 |---|---|
 | Versao do software | `0.1.0` |
 | Versao do protocolo binario | `1` |
-| Revisao do SDD | `0.3.0-draft` |
+| Revisao do SDD | `0.4.0-draft` |
 | Conformidade | Parcial |
 | Ultima revisao | 2026-11-24 |
 
@@ -55,7 +55,8 @@ que a capacidade existe.
 | Integracao MeshCore | Secao 17 e Fase 9 | Planejado | Nao implementado | Sem adaptador; limites em `docs/meshcore-reference.md` |
 | Perfil de transmissao parametrizado | Etapa A | Proposto | Nao implementado | `docs/transmission-profile.md`; sem presets no codigo |
 | Transmission Descriptor inline | Etapa A | Proposto | Nao implementado | `docs/transmission-descriptor.md`; sem parser ou serializacao |
-| RGB332 | Etapa A e Fase 7 | Proposto | Nao implementado | ID `0x02` e empacotamento apenas como proposta |
+| Codec RGB332 | Issue #38 / Fase 7 | Aprovado | Implementado | `src/meshmedia_lab/codec/rgb332.py`, testes unitarios, pipeline e aplicativos locais |
+| Registro RGB332 no MM1 v1 | Issue #38 / Fase 7 | Aprovado sem alterar layout | Implementado | `media.py` (`codec=0x02`, `levels=0`), `packet.py`, testes UDP locais |
 | Limite de 128 x 128 | Ordem de trabalho / Etapa B | Implementado | Implementado | `media.py`, `codec/encoder.py`, `tests/unit/test_codec.py` e `tests/unit/test_protocol.py` |
 | Matriz de experimentos | Etapa A | Proposto | Nao implementado | `docs/experiment-matrix.md`; sem executor de benchmarks |
 | Aplicação web local TX/RX | SDD secao 29 / Issue #39 | Planejado | Nao implementado | Interface localhost e serviço serial ainda não existem |
@@ -64,7 +65,8 @@ que a capacidade existe.
 
 O MVP local atualmente funciona desta forma:
 
-1. O encoder reduz a imagem para grayscale quantizado e empacotado.
+1. O TX seleciona grayscale ou RGB332; grayscale permanece o default. RGB332
+   usa um byte por pixel e metadata com `codec=0x02` e `levels=0`.
 2. O `Fragmenter` divide os bytes em payloads de tamanho configuravel. O
    padrao e 64 bytes e o limite do campo e 255 bytes.
 3. Cada `Packet` serializa um cabecalho de 19 bytes, o payload e um CRC de
@@ -74,8 +76,8 @@ O MVP local atualmente funciona desta forma:
    recuperacao de fragmentos ausentes.
 6. O simulador atual pode descartar um pacote ou alterar um bit de um pacote,
    usando uma semente para permitir repeticao do experimento.
-7. `ImageMetadata`, `ImageEncoder` e `EncodedImage` rejeitam largura ou altura
-   fora de `1..128`; as dimensoes continuam independentes.
+7. Grayscale rejeita largura ou altura fora de `1..128`; RGB332 rejeita valores
+   fora de `1..64`. As dimensoes continuam independentes em ambos os codecs.
 
 Consequentemente, uma perda ou uma corrupcao detectada pelo CRC torna a
 transmissao incompleta no MVP. FEC e retransmissao sao alternativas futuras,

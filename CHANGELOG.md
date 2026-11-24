@@ -26,9 +26,17 @@ do software ou do protocolo.
   `TXT_MSG` e `RAW_CUSTOM` para um canal MeshCore privado.
 - Registrados na matriz os resultados dos testes manuais TX/RX UDP para imagens
   `64x64` e `32x32`.
+- Adicionado o ADR 0003 com a aprovacao do RGB332 e a baseline sem FEC para
+  futuras comparacoes com Reed-Solomon.
 
 ### Especificacao
 
+- Atualizada a revisao do SDD para `0.4.0-draft`, com quantizacao,
+  reconstrução, limites e metricas do experimento RGB332.
+- Aprovado o registro RGB332 `0x02` no MM1 v1 sem alterar o cabecalho, usando
+  `levels=0` para indicar profundidade fixa `3/3/2`.
+- Registradas as execucoes `32x32`/16 mensagens e `64x64`/64 mensagens como
+  baseline `fec_algorithm=none` para futuras comparacoes FEC/RS.
 - Estabelecida a revisao `0.2.0-draft` do SDD.
 - Registrada a matriz experimental RS(32,28), RS(32,24) e RS(32,20).
 - Separados os estados implementado, parcial, proposto e planejado.
@@ -41,8 +49,16 @@ do software ou do protocolo.
 
 ### Implementacao
 
-- Nenhuma outra mudanca de comportamento no software nesta revisao; RGB332,
-  FEC, descritor e benchmarks continuam sem codigo.
+- Adicionados encoder, decoder, testes e benchmark do experimento RGB332
+  isolado; depois da validacao visual, RGB332 foi aprovado como codec da
+  implementacao de referencia.
+- Adicionados TX/RX UDP locais separados para a validacao visual RGB332, sem
+  reutilizar ou alterar o pacote MM1 v1.
+- Adicionada a selecao `--codec grayscale|rgb332` aos aplicativos MM1 locais,
+  preservando grayscale como default e usando `levels=0` para RGB332.
+- Nenhuma mudanca de comportamento no protocolo nesta revisao; FEC e descritor
+  continuam sem codigo, enquanto o harness adicional RGB332 permanece
+  experimental.
 - Aplicado ao grayscale o limite independente de `1..128` pixels para largura e
   altura, com testes para limites, dimensoes nao quadradas e rejeicao de valores
   acima do perfil.

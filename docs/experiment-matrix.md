@@ -41,7 +41,7 @@ Cada execucao deve registrar todos os valores abaixo.
 |---|---|
 | Protocolo | MM1 v1, revisao do SDD e commit do codigo |
 | Transporte local | memoria ou UDP |
-| Codec | grayscale packed; RGB332 somente quando implementado |
+| Codec | grayscale packed; RGB332 aprovado e implementado |
 | Dimensoes | `32x32`, `64x32`, `32x64`, `128x128` |
 | Niveis grayscale | `2`, `4`, `8`, `16`, `256`, conforme suporte do codec |
 | Payload MM1 | `20`, `40`, `60`, `80`, `100` e baseline `64` bytes |
@@ -148,10 +148,69 @@ O conjunto inicial pode usar:
 | Codec | Dimensoes | Parametros |
 |---|---|---|
 | Grayscale packed | `32x32`, `64x32`, `32x64`, `128x128` | `2`, `16` e `256` niveis |
-| RGB332 | mesmas dimensoes | Somente depois de implementado e testado |
+| RGB332 | `32x32`, `64x64` | `codec=0x02`, canais `3/3/2`, sem compressao |
 
 A matriz deve incluir pelo menos uma imagem nao quadrada para verificar que
 largura e altura nao foram confundidas.
+
+## 6.1 Experimento RGB332 da Issue #38
+
+Esta celula registra a validacao inicial do RGB332. O codec foi aprovado para a
+implementacao de referencia e o caminho MM1 v1 usa os campos existentes, sem
+alterar o layout do cabecalho.
+
+| Campo | Valor do experimento |
+|---|---|
+| Ambiente | Memoria local, UDP localhost e MM1 local |
+| Codec colorido | RGB332 (`codec=0x02`) |
+| Dimensoes | `32x32` e `64x64` |
+| Limite da API experimental | `1..64` por dimensao |
+| Grayscale principal | Packed, `16` niveis |
+| Payload para custo | `64` bytes |
+| Compressao | Nenhuma |
+| Descriptor | Nao utilizado |
+| FEC, ACK/NACK | Nao utilizados |
+| Transporte | MM1 local ou harness UDP separado |
+
+O grayscale de 16 niveis e o baseline principal por menor custo de transporte,
+mantendo-se a possibilidade de repetir o benchmark com outro valor de `levels`.
+O executor deve registrar essa escolha e permitir ajuste posterior sem alterar
+os bytes do experimento ja registrado.
+
+Para RGB332, a representacao e um byte por pixel na ordem `RRRGGGBB`, com
+quantizacao por piso e reconstrucoes fixas conforme o perfil de transmissao.
+O custo MM1 e calculado sem descritor:
+
+```text
+encoded_bytes = width * height
+fragment_count = ceil(encoded_bytes / 64)
+header_bytes = fragment_count * 19
+crc_bytes = fragment_count * 2
+overhead_bytes = header_bytes + crc_bytes
+wire_bytes = encoded_bytes + overhead_bytes
+```
+
+O objetivo de qualidade e produzir imagens RGB reconstruidas e imagens
+grayscale correspondentes para inspeção visual humana no terminal, acompanhadas
+de MAE e PSNR. Resultados locais nao devem ser apresentados como medição de
+rádio, airtime ou compatibilidade MeshCore.
+
+### 6.2 Baseline para FEC e Reed-Solomon
+
+Os resultados abaixo sao a baseline sem FEC que deve ser preservada para futuras
+comparacoes com Reed-Solomon. `repair_bytes=0`, `fec_algorithm=none` e
+`retransmissions=0` sao parte do registro da execucao:
+
+| Codec | Resolucao | Encoded bytes | Fragmentos | MM1 overhead | MM1 total | FEC |
+|---|---|---:|---:|---:|---:|---|
+| RGB332 | `32x32` | 1024 | 16 | 336 | 1360 | none / 0 reparo |
+| RGB332 | `64x64` | 4096 | 64 | 1344 | 5440 | none / 0 reparo |
+| Grayscale 16 | `32x32` | 512 | 8 | 168 | 680 | none / 0 reparo |
+| Grayscale 16 | `64x64` | 2048 | 32 | 672 | 2720 | none / 0 reparo |
+
+Uma futura medicao FEC/RS deve manter a imagem, codec, resolucao e payload
+constantes e acrescentar, no minimo, `repair_bytes`, `fec_algorithm`,
+`fragment_count`, `packets_sent`, `packets_received` e `reconstruction_success`.
 
 ## 7. Variacao de payload
 

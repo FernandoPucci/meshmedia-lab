@@ -124,8 +124,9 @@ ceil(width * height * log2(levels) / 8)
 Nesse caso, `encoded_length`, `compression_id` e todos os campos FEC podem ser
 omitidos, desde que o modo baseline esteja explicitamente identificado.
 
-Para RGB332 sem compressao, o tamanho derivavel seria `width * height`, mas o
-codec ainda e apenas uma proposta.
+Para RGB332 sem compressao, o tamanho derivavel e `width * height`. O codec
+`0x02` e implementado no envelope v1 com `levels=0`; o descritor continua
+desnecessario para os parametros fixos `3/3/2`.
 
 O descritor nunca deve conter um ID de perfil que esconda esses parametros.
 Uma configuracao experimental deve ser reproduzivel a partir dos valores
