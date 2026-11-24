@@ -107,6 +107,29 @@ class LocalApplicationsTests(unittest.TestCase):
                 self.assertEqual(received.size, (8, 6))
 
     def test_tx_and_rx_exchange_rgb332_over_udp(self) -> None:
+        self._assert_rgb332_exchange(
+            resolution="32x32",
+            image_id=12,
+            expected_messages=16,
+            expected_size=(32, 32),
+        )
+
+    def test_tx_and_rx_exchange_rgb332_64_by_64_over_udp(self) -> None:
+        self._assert_rgb332_exchange(
+            resolution="64x64",
+            image_id=13,
+            expected_messages=64,
+            expected_size=(64, 64),
+        )
+
+    def _assert_rgb332_exchange(
+        self,
+        *,
+        resolution: str,
+        image_id: int,
+        expected_messages: int,
+        expected_size: tuple[int, int],
+    ) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             temporary = Path(temporary_directory)
             input_path = temporary / "input.png"
@@ -173,13 +196,13 @@ class LocalApplicationsTests(unittest.TestCase):
                         "--port",
                         str(port),
                         "--resolution",
-                        "32x32",
+                        resolution,
                         "--codec",
                         "rgb332",
                         "--payload",
                         "64",
                         "--image-id",
-                        "12",
+                        str(image_id),
                         "--log-level",
                         "DEBUG",
                     ],
@@ -200,12 +223,23 @@ class LocalApplicationsTests(unittest.TestCase):
             self.assertEqual(receiver.returncode, 0, receiver_output)
             self.assertTrue(output_path.exists())
             self.assertIn("codec=rgb332", transmitter.stderr)
-            self.assertIn("messages=16", transmitter.stderr)
-            self.assertIn("messages=16", receiver_output)
+            self.assertIn("codec=0x02", transmitter.stderr)
+            self.assertIn("levels=0", transmitter.stderr)
+            self.assertIn(f"messages={expected_messages}", transmitter.stderr)
+            self.assertIn(f"messages={expected_messages}", receiver_output)
+            expected_wire_bytes = (
+                expected_size[0] * expected_size[1] + expected_messages * 21
+            )
+            self.assertIn(
+                f"message_bytes_total={expected_wire_bytes}",
+                transmitter.stderr,
+            )
+            self.assertIn("codec=0x02", receiver_output)
+            self.assertIn("levels=0", receiver_output)
 
             with Image.open(output_path) as received:
                 self.assertEqual(received.mode, "RGB")
-                self.assertEqual(received.size, (32, 32))
+                self.assertEqual(received.size, expected_size)
 
     @staticmethod
     def _free_port() -> int:

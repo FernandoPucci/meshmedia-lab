@@ -1,7 +1,11 @@
 import unittest
 
 from meshmedia_lab.codec.decoder import ImageDecoder
-from meshmedia_lab.codec.encoder import ImageEncoder, ImageEncodingError
+from meshmedia_lab.codec.encoder import (
+    EncodedImage,
+    ImageEncoder,
+    ImageEncodingError,
+)
 
 
 class ImageCodecTests(unittest.TestCase):
@@ -41,3 +45,74 @@ class ImageCodecTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ImageEncodingError, "target height.*128"):
             ImageEncoder(width=1, height=129)
+
+    def test_encoder_rejects_zero_and_negative_dimensions(self) -> None:
+        for width in (0, -1):
+            with self.subTest(width=width):
+                with self.assertRaisesRegex(
+                    ImageEncodingError,
+                    "target width.*between 1 and 128",
+                ):
+                    ImageEncoder(width=width, height=1)
+
+        for height in (0, -1):
+            with self.subTest(height=height):
+                with self.assertRaisesRegex(
+                    ImageEncodingError,
+                    "target height.*between 1 and 128",
+                ):
+                    ImageEncoder(width=1, height=height)
+
+    def test_encoded_image_rejects_zero_and_negative_dimensions(self) -> None:
+        for width in (0, -1):
+            with self.subTest(width=width):
+                with self.assertRaisesRegex(
+                    ImageEncodingError,
+                    "image width.*between 1 and 128",
+                ):
+                    EncodedImage(width=width, height=1, levels=16, data=b"")
+
+        for height in (0, -1):
+            with self.subTest(height=height):
+                with self.assertRaisesRegex(
+                    ImageEncodingError,
+                    "image height.*between 1 and 128",
+                ):
+                    EncodedImage(width=1, height=height, levels=16, data=b"")
+
+    def test_encoder_accepts_all_supported_levels(self) -> None:
+        expected_sizes = {
+            2: 1,
+            4: 1,
+            8: 1,
+            16: 1,
+            256: 2,
+        }
+
+        for levels, expected_size in expected_sizes.items():
+            with self.subTest(levels=levels):
+                encoded = ImageEncoder(
+                    width=2,
+                    height=1,
+                    levels=levels,
+                ).encode(((0, 255),))
+
+                self.assertEqual(encoded.levels, levels)
+                self.assertEqual(len(encoded.data), expected_size)
+
+    def test_encoder_rejects_invalid_pixel_matrices(self) -> None:
+        encoder = ImageEncoder(width=2, height=2)
+        invalid_matrices = (
+            (),
+            ((),),
+            ((0,), (0, 1)),
+            ((-1,),),
+            ((256,),),
+            (("0",),),
+            ((0.0,),),
+        )
+
+        for pixels in invalid_matrices:
+            with self.subTest(pixels=pixels):
+                with self.assertRaises(ImageEncodingError):
+                    encoder.encode(pixels)

@@ -70,6 +70,23 @@ class ProtocolTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "height must be between 1 and 128"):
             ImageMetadata(width=1, height=129, levels=16)
 
+    def test_metadata_rejects_zero_and_negative_dimensions(self) -> None:
+        for width in (0, -1):
+            with self.subTest(width=width):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "width must be between 1 and 128",
+                ):
+                    ImageMetadata(width=width, height=1, levels=16)
+
+        for height in (0, -1):
+            with self.subTest(height=height):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "height must be between 1 and 128",
+                ):
+                    ImageMetadata(width=1, height=height, levels=16)
+
     def test_rgb332_metadata_uses_zero_levels(self) -> None:
         metadata = ImageMetadata(
             width=32,

@@ -8,6 +8,11 @@ do software ou do protocolo.
 
 ### Documentacao
 
+- Alinhado o perfil de transmissão, a matriz de implementação e o experimento
+  RGB332 para distinguir claramente os limites grayscale `128x128` e RGB332
+  `64x64`, além do estado do registro `codec=0x02`.
+- Esclarecido que o executor RGB332 específico não representa um framework geral
+  de benchmarks.
 - Registrado o contrato experimental isolado do RGB332 da Issue #38, sem alteracao do envelope MM1 v1.
 
 - Registrado no SDD o objetivo arquitetural de uma aplicação web local TX/RX, com duas instâncias seriais independentes, estimativa de transmissão e reconstrução visual; criada a Issue #39 para acompanhar sua evolução.
@@ -51,6 +56,9 @@ do software ou do protocolo.
 
 ### Implementacao
 
+- Ampliada a cobertura automatizada para dimensões zero e negativas, entradas
+  inválidas grayscale, limites RGB332, dimensões independentes e transmissão
+  MM1 RGB332 em `64x64`.
 - Adicionados encoder, decoder, testes e benchmark do experimento RGB332
   isolado; depois da validacao visual, RGB332 foi aprovado como codec da
   implementacao de referencia.
