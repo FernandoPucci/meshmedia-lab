@@ -178,3 +178,51 @@ pelas aplicacoes locais nesta etapa. MeshCore continua sendo um transporte
 planejado, nao uma capacidade implementada.
 Os limites e formatos do transporte MeshCore usados como referencia estao em
 [`meshcore-reference.md`](meshcore-reference.md).
+
+
+## Aplicação web local — arquitetura-alvo
+
+A aplicação web local é o objetivo de produto de longo prazo registrado na
+[Issue #39](https://github.com/FernandoPucci/meshmedia-lab/issues/39) e na
+seção 29 do SDD. Ela ainda não faz parte da implementação atual.
+
+Cada estação executará uma instância local da aplicação:
+
+- **Frontend web:** upload da imagem, pré-visualização, seleção de dimensões e
+  codec disponível, escolha do canal privado, estimativa, progresso e exibição
+  da imagem recebida.
+- **Serviço local:** processamento da imagem, execução do codec, preparação e
+  estimativa dos pacotes MM1, controle do pipeline e apresentação do estado.
+- **Adaptador serial/MeshCore:** comunicação com uma única Heltec V3 por
+  instância, sem acoplar o protocolo MM1 à API serial.
+- **Núcleo MM1:** codec, fragmentação, integridade e reassemblagem, independente
+  da interface e do transporte.
+
+O TX e o RX serão duas instâncias independentes, possivelmente em computadores
+distintos. O backend local deve gerenciar a serial, evitando depender
+exclusivamente da Web Serial API. A estimativa de mensagens deve ser calculada
+sobre os bytes realmente codificados e os limites reais do transporte, e não
+apenas pela resolução selecionada.
+
+O canal privado e a criptografia devem permanecer sob responsabilidade do
+MeshCore. A aplicação não deve expor chaves em logs ou URLs. A integração
+continua condicionada à validação das interfaces seriais e do adaptador com o
+firmware original; customização de firmware é alternativa posterior, não
+premissa.
+
+```mermaid
+flowchart LR
+    subgraph TX["TX — aplicação local"]
+        UI1["Frontend web"] --> APP1["Serviço local<br/>codec + MM1"]
+        APP1 --> SER1["Serial / MeshCore"]
+    end
+    SER1 <--> MESH["Canal privado MeshCore"]
+    subgraph RX["RX — aplicação local"]
+        SER2["Serial / MeshCore"] --> APP2["Serviço local<br/>MM1 + decoder"]
+        APP2 --> UI2["Frontend web<br/>imagem reconstruída"]
+    end
+    MESH <--> SER2
+```
+
+Esta arquitetura-alvo não altera o wire format MM1 v1 e não significa que
+RGB332, FEC, ACK/NACK ou transmissão progressiva já estejam implementados.
