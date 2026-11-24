@@ -179,5 +179,5 @@ Reed-Solomon e outras formas de recuperacao continuam fora desta etapa.
 - A contagem de fragmentos segue a formula do fragmentador atual.
 - Nao houve medicao de UDP, radio, airtime ou MeshCore.
 - O ID `0x02` foi registrado para RGB332, com `levels=0` no metadata MM1 v1.
-- Um resultado favoravel exige uma etapa posterior para especificar eventual
-  promocao e integracao oficial.
+- A integracao posterior no pipeline MM1 local foi registrada no SDD e preservou
+  o cabecalho de 19 bytes; o harness UDP independente continua separado.

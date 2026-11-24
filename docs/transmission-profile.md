@@ -38,9 +38,9 @@ efetivos sao os definidos pelo cabecalho existente em
 |---|---|---|---|
 | `transmission_id` (`image_id` no v1) | `uint16` | `0..65535` | Implementado |
 | `media_type` | `uint8` | `0x01 = IMAGE` | Implementado |
-| `codec_id` | `uint8` | Registro de codecs | Parcial |
-| `width` | `uint16` no v1 | `1..128`, independente de `height` | Limite proposto |
-| `height` | `uint16` no v1 | `1..128`, independente de `width` | Limite proposto |
+| `codec_id` | `uint8` | `0x01` grayscale; `0x02` RGB332 | Implementado para os codecs atuais; registro extensível ainda parcial |
+| `width` | `uint16` no v1 | Grayscale `1..128`; RGB332 `1..64`, independente de `height` | Implementado com limite por codec |
+| `height` | `uint16` no v1 | Grayscale `1..128`; RGB332 `1..64`, independente de `width` | Implementado com limite por codec |
 | `levels` | `uint16` no v1 | Grayscale: niveis validos; RGB332: `0` (nao aplicavel) | Implementado por codec |
 | `codec_parameters` | bytes versionados | Sem valores implícitos | Proposto |
 | `encoded_length` | `uint16` candidato | Obrigatorio quando nao for derivavel | Proposto |
@@ -92,7 +92,7 @@ um codec oficial da implementacao de referencia e pode ser selecionado pelas
 aplicacoes locais. A integracao usa o envelope MM1 v1 existente; nenhum campo,
 tamanho ou ordem do cabecalho foi alterado.
 
-| Campo | Proposta |
+| Campo | Valor |
 |---|---|
 | `codec_id` | `0x02` implementado |
 | Tamanho | 1 byte por pixel |
