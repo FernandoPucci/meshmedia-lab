@@ -89,8 +89,9 @@ pacotes e prefixo `TD | 16 | corpo v1` no fragmento zero. O modelo/parser valida
 metadados e comprimento, o reassembler limita dados fora de ordem e rejeita
 inconsistencias sem fallback; TX/RX locais e pipeline aceitam os dois modos.
 Testes fixam os bytes legados, o CRC e casos positivos/negativos. O corpo atual
-nao suporta FEC, compressao ou parametros extras. A entrega nesta branch nao
-representa por si so encerramento das Issues #17, #18 ou do agrupador #5.
+nao suporta FEC, compressao ou parametros extras. A PR #43 integrou esta
+extensao ao master; as Issues #17, #18 e #5 foram encerradas apos a revisao
+das evidencias do merge.
 
 ## Propostas que ainda nao sao protocolo
 
@@ -108,10 +109,13 @@ os bytes legados, o cabecalho de 19 bytes ou o CRC. O envio estendido exige RX
 atualizado; nao existe negociacao automatica. Futuras alteracoes dessa extensao
 continuam sujeitas a especificacao e testes de compatibilidade.
 
-## Verificacao local do descritor (2026-11-24)
+## Verificacao da PR #43 (2026-11-24)
 
-Branch `feature/transmission-descriptor`, baseada em `origin/master` `6c9a064`
-(PR #42). Esta verificacao local nao significa merge ou fechamento de Issues.
+A implementacao do descritor foi integrada ao `master` pela PR #43, merge commit
+`6173befa6daf67625e21e0eed3c866b2c424253d`, a partir da branch
+`feature/transmission-descriptor` (`a7f05f2`). A PR registra a execucao local da
+suite e os resultados abaixo. As Issues #17, #18 e #5 foram encerradas apos
+revisao das evidencias e do estado integrado.
 
 ```bash
 PYTHONPATH=src:. python3 -m unittest discover -s tests -p 'test_*.py' -v
