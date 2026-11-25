@@ -1,7 +1,7 @@
 # ADR 0004 — Transmission Descriptor inline v1
 
 - Data: 2026-11-24
-- Estado: contrato aprovado para implementacao nesta branch; sujeito a revisao da PR
+- Estado: implementado e integrado ao `master` pela PR #43 (merge commit `6173befa6daf67625e21e0eed3c866b2c424253d`)
 - Rastreabilidade: Issues #17, #18 e #5
 
 ## Contexto e autorizacao
