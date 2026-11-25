@@ -5,7 +5,7 @@
 - **Abordagem:** Specification-Driven Development (SDD)
 - **Objetivo:** Desenvolver um protocolo eficiente para transmissão de imagens e, futuramente, áudio através de redes MeshCore/LoRa.
 - **Nome do protocolo:** MM1 (MeshMedia v1)
-- **Revisão do SDD:** 0.8.0-draft
+- **Revisão do SDD:** 0.9.0-draft
 - **Versão da implementação de referência:** 0.1.0
 - **Versão do protocolo binário:** 1
 - **Conformidade:** Parcial
@@ -27,7 +27,7 @@ O projeto usa tres identificadores independentes:
 |---|---|
 | Versao do software | Evolucao do pacote Python e de sua API. Atualmente `0.1.0`. |
 | Versao do protocolo | Compatibilidade do formato binario transportado. Atualmente `1`. |
-| Revisao do SDD | Evolucao dos requisitos, decisoes e propostas. Atualmente `0.7.0-draft`. |
+| Revisao do SDD | Evolucao dos requisitos, decisoes e propostas. Atualmente `0.9.0-draft`. |
 
 Uma alteracao editorial nao altera a versao do software nem a versao do
 protocolo. Uma alteracao incompativel no formato ou no significado dos pacotes
@@ -1774,7 +1774,7 @@ instância pode atuar como transmissor (TX) e a outra como receptor (RX).
 
 A interface TX deverá permitir:
 
-1. Conectar/selecionar a porta serial da Heltec V3.
+1. Solicitar a conexão BLE e selecionar o MeshCore Companion da Heltec V3.
 2. Carregar uma imagem local e apresentar uma pré-visualização.
 3. Selecionar dimensões de saída, inicialmente dentro do limite vigente de
    128 x 128 pixels (por exemplo, 32 x 32 ou 64 x 64).
@@ -1799,7 +1799,7 @@ transporte MeshCore.
 
 A interface RX deverá permitir:
 
-1. Conectar/selecionar a porta serial da Heltec V3 receptora.
+1. Solicitar a conexão BLE e selecionar o MeshCore Companion da Heltec V3 receptora.
 2. Monitorar mensagens recebidas no canal privado configurado.
 3. Identificar pacotes MM1 e validar integridade antes da reassemblagem.
 4. Reassemblar fragmentos e decodificar a imagem usando os metadados recebidos,
@@ -1810,46 +1810,123 @@ A interface RX deverá permitir:
 
 ## 29.3 Arquitetura lógica
 
-A aplicação deverá separar interface, serviço local, protocolo e transporte:
+A aplicação será uma **WebApp estática, browser-only**, publicada em GitHub
+Pages (ou hospedagem estática HTTPS equivalente). Cada estação abre a mesma URL
+em seu próprio navegador e conecta diretamente sua Heltec V3 por Bluetooth
+Low Energy (BLE), usando o firmware MeshCore Companion existente.
+
+Não haverá backend, servidor localhost, processo Python instalado, Docker,
+clone do repositório ou serviço auxiliar na máquina do usuário. O navegador
+executará a interface, a preparação MM1 e a comunicação com o Companion.
 
 ```mermaid
 flowchart LR
-    subgraph TX["Estação TX — localhost"]
-        TUI["Interface web TX<br/>upload, preview e parâmetros"]
-        TAPP["Serviço local TX<br/>codec, estimativa e MM1"]
-        TSER["Adaptador serial/MeshCore"]
-        TUI --> TAPP --> TSER
+    subgraph TX["Estação TX — navegador"]
+        TUI["WebApp hospedada<br/>upload, preview e parâmetros"]
+        TCORE["Runtime Python no browser<br/>codec + protocolo MM1"]
+        TBLE["Adaptador BLE<br/>MeshCore Companion"]
+        TUI --> TCORE --> TBLE
     end
-
     subgraph RADIO["Rede MeshCore"]
         CH["Canal/grupo privado<br/>criptografia MeshCore"]
     end
-
-    subgraph RX["Estação RX — localhost"]
-        RSER["Adaptador serial/MeshCore"]
-        RAPP["Serviço local RX<br/>validação, reassemblagem e codec"]
-        RUI["Interface web RX<br/>progresso e imagem reconstruída"]
-        RSER --> RAPP --> RUI
+    subgraph RX["Estação RX — navegador"]
+        RBLE["Adaptador BLE<br/>MeshCore Companion"]
+        RCORE["Runtime Python no browser<br/>MM1 + reassemblagem + codec"]
+        RUI["WebApp hospedada<br/>progresso e imagem reconstruída"]
+        RBLE --> RCORE --> RUI
     end
-
-    TSER <--> CH <--> RSER
+    TBLE <--> CH <--> RBLE
 ```
 
-A interface web deverá ser servida em localhost. O serviço/backend local será
-responsável por acessar a porta serial, executar o pipeline MM1 e fornecer
-estado e resultados à interface. Preferir serial gerenciada pelo backend, em
-vez de depender exclusivamente da Web Serial API, cuja disponibilidade varia
-entre navegadores e plataformas.
+### 29.3.1 Reutilização obrigatória do codec existente
 
-O desenho deverá permitir duas instâncias independentes, cada uma com sua
-própria porta serial e estado de transmissão/recepção. A interface não deverá
-acoplar o codec ou o protocolo a uma tecnologia específica de frontend.
+O codec já implementado em src/meshmedia_lab/codec/ é um componente
+estabelecido do projeto e deverá ser **utilizado pela WebApp sem reescrita,
+tradução ou modificação para atender ao frontend**.
+
+- Não reimplementar grayscale, RGB332, empacotamento, limites ou regras de
+  codificação/decodificação em JavaScript ou TypeScript.
+- Não alterar arquivos, APIs públicas, vetores binários, semântica ou testes do
+  codec como parte da construção da WebApp.
+- Não criar uma segunda implementação do codec para navegador.
+- A integração deve chamar a implementação Python existente. A hipótese
+  técnica inicial é executar os módulos Python no navegador via Pyodide/WebAssembly,
+  carregando o pacote existente e expondo uma pequena camada de integração
+  JavaScript. A viabilidade deve ser comprovada em uma prova de conceito antes
+  de assumir essa tecnologia como definitiva.
+- O mesmo princípio de reutilização deve ser aplicado aos módulos de protocolo
+  MM1 sempre que forem compatíveis com o runtime browser. Adaptadores e
+  wrappers específicos do navegador devem ficar em uma camada nova, fora dos
+  módulos existentes de codec.
+- Se o runtime browser não conseguir executar o codec existente sem mudanças,
+  interromper a implementação e apresentar alternativas para decisão humana.
+  Não portar nem modificar o codec silenciosamente para contornar a limitação.
+
+O codec deve continuar testável e utilizável independentemente da WebApp. Os
+testes e vetores atuais permanecem como referência de conformidade.
+
+### 29.3.2 Hospedagem e execução no navegador
+
+- Publicar os arquivos estáticos da aplicação em GitHub Pages, servidos por
+  HTTPS. A página não deve depender de API/backend hospedado para processar
+  imagens ou transmitir dados.
+- Toda imagem selecionada, bytes codificados, fragmentos MM1, reassemblagem e
+  decodificação devem ser processados localmente no navegador.
+- O GitHub Pages entrega apenas HTML, CSS, JavaScript, WebAssembly e os demais
+  assets da aplicação. O conteúdo de mídia e os pacotes MeshCore não devem ser
+  enviados ao GitHub ou a um servidor remoto.
+- Cada estação opera de forma independente: uma aba/navegador conectado ao
+  Companion transmissor e outra estação conectada ao Companion receptor.
+- A permissão BLE deve ser solicitada por ação explícita do usuário, com
+  indicação clara do dispositivo selecionado, estado da conexão e opção de
+  desconectar/reconectar.
+
+### 29.3.3 Integração MeshCore Companion por BLE
+
+O caminho primário será **Web Bluetooth API** com o firmware MeshCore Companion
+Bluetooth já utilizado nas placas. Não trocar o firmware para USB como
+premissa da WebApp.
+
+A biblioteca JavaScript meshcore.js deverá ser avaliada como candidata a
+fornecer a conexão BLE e as operações do Companion, evitando reimplementar o
+protocolo de comunicação do dispositivo. A API, os comandos necessários para
+dados binários de grupo, notificações, reconexão e licença devem ser verificados
+em uma prova de conceito antes de fixar a dependência.
+
+- O adaptador BLE será novo e ficará na camada de transporte/adaptação da
+  aplicação web; não deve alterar codec nem wire format MM1.
+- O canal/grupo privado e a criptografia permanecem sob responsabilidade do
+  MeshCore Companion.
+- A aplicação deverá usar a operação de dados binários de grupo adequada ao
+  firmware e ao canal, após validação. Não transportar pacotes binários MM1
+  como mensagens de texto.
+- Limites de payload devem considerar o envelope real do Companion/MeshCore,
+  inclusive overhead, e não somente o limite de fragmentação MM1.
+- USB/Web Serial pode ser considerado posteriormente como adaptador
+  alternativo, sem modificar o codec ou o núcleo MM1.
+
+### 29.3.4 Compatibilidade de navegadores
+
+A primeira plataforma-alvo será navegador desktop baseado em Chromium
+(Chrome/Edge) com suporte efetivo a Web Bluetooth e contexto seguro HTTPS.
+Web Bluetooth não é suportado de forma uniforme entre navegadores e sistemas
+operacionais.
+
+A WebApp deverá detectar a disponibilidade de navigator.bluetooth e
+apresentar instruções claras quando o navegador ou a plataforma não oferecer
+suporte. O comportamento no Linux deve ser validado cedo, pois pode depender
+da versão/build do Chromium e de configuração do ambiente Bluetooth.
+
+Não declarar compatibilidade ampla antes de testes em sistemas e navegadores
+identificados. Firefox e Safari não devem ser anunciados como suportados para
+o caminho BLE enquanto não houver um adaptador alternativo validado.
 
 ## 29.4 Canal privado e material criptográfico
 
 A transmissão deverá utilizar um canal/grupo privado do MeshCore. A criptografia
 de enlace e o gerenciamento da chave devem permanecer sob responsabilidade do
-MeshCore sempre que as interfaces existentes permitirem.
+MeshCore Companion.
 
 A aplicação não deverá registrar chaves em logs, URLs, relatórios ou artefatos
 de diagnóstico. A preferência é selecionar um canal já configurado no
@@ -1862,23 +1939,35 @@ substituir o material criptográfico do MeshCore.
 
 ## 29.5 Restrições e dependências
 
-- A aplicação depende da validação da comunicação serial, do canal privado e do
-  adaptador MeshCore previstos na Etapa E e na Issue #8, incluindo as atividades
-  relacionadas de bancada e TX/RX.
-- A integração deve respeitar os limites reais de payload, serialização,
-  roteamento e comportamento do MeshCore. O limite do frame de rádio não deve
-  ser confundido com o payload disponível à aplicação.
-- Preservar o wire format MM1 v1. A interface não justifica alteração
-  incompatível no protocolo.
-- RGB332 já está implementado no pipeline local, com limite atual de 64 x 64.
-  A interface deve refletir os codecs e limites efetivamente disponíveis.
-  A integracao FEC/Reed-Solomon no pipeline local esta implementada como
-  extensao opt-in; ACK/NACK e transmissão progressiva continuam indisponíveis.
-- Não customizar inicialmente firmware MeshCore nem o aplicativo oficial. Se
-  as interfaces existentes não permitirem o fluxo necessário, documentar a
-  limitação e apresentar alternativas antes de alterar firmware.
-- Tiling acima de 128 x 128 e refinamento progressivo continuam fora do escopo
-  inicial desta aplicação.
+- A primeira entrega técnica deve ser uma prova de conceito mínima da WebApp
+  estática em HTTPS: detectar Web Bluetooth, solicitar seleção do Companion,
+  conectar, ler informações básicas e demonstrar envio/recepção de uma
+  mensagem de teste compatível com o firmware. Não começar pela interface
+  completa de imagens.
+- A prova de conceito deve validar também a execução do codec Python existente
+  no navegador via Pyodide/WebAssembly, sem modificar seus arquivos, APIs ou
+  testes. Se necessário, validar a execução do pacote/protocolo MM1 existente
+  no mesmo runtime.
+- A escolha de meshcore.js, Pyodide e bundler deverá ser confirmada por
+  protótipo, documentação upstream, compatibilidade, licença e tamanho/carga
+  inicial. Não assumir que uma biblioteca oferece operações que ainda não
+  foram verificadas.
+- A aplicação depende da validação do canal privado, das operações Companion
+  necessárias e dos limites reais de payload/serialização MeshCore. A
+  implementação browser-only não substitui ensaios com duas placas físicas.
+- Preservar integralmente o codec existente e o wire format MM1 v1. A WebApp
+  deve consumir o pipeline implementado; não criar um codec paralelo.
+- RGB332 está implementado no pipeline local, com limite atual de 64 x 64;
+  grayscale aceita até 128 x 128. A interface deve refletir os limites
+  efetivamente disponíveis.
+- A integração FEC/Reed-Solomon existe no pipeline local como extensão opt-in,
+  mas não deve ser habilitada por padrão sem decisão específica. ACK/NACK,
+  retransmissão de aplicação e transmissão progressiva continuam indisponíveis.
+- Não customizar inicialmente firmware MeshCore nem o aplicativo oficial. USB
+  pode ser avaliado como alternativa de conectividade se BLE não for viável,
+  mas não é requisito inicial.
+- Tiling acima dos limites atuais dos codecs e refinamento progressivo ficam
+  fora do escopo inicial.
 
 # 30. Issue #24 — comparacao CRC-only, CRC+RS e RS-only
 

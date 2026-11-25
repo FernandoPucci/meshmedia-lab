@@ -6,6 +6,12 @@ do software ou do protocolo.
 
 ## [Unreleased]
 
+### WebApp browser-only — atualização documental do SDD
+
+- Substituída a arquitetura-alvo localhost/backend serial por WebApp estática em GitHub Pages/HTTPS, com conexão direta Web Bluetooth ao MeshCore Companion.
+- Registrada como regra explícita a reutilização do codec Python existente sem reescrita ou alteração; Pyodide/WebAssembly permanece hipótese a validar em prova de conceito.
+- Definida a sequência incremental de validação BLE, runtime do codec e integração MM1, sem declarar a integração MeshCore implementada.
+
 ### Issue #24 — harness experimental CRC/FEC
 
 - Especificado o executor reproduzivel para comparar CRC-only, CRC+RS e RS-only.

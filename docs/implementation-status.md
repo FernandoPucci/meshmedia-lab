@@ -69,7 +69,7 @@ que a capacidade existe.
 | Harness RS-only | Issue #24 | Isolado, sem MM1 v1 | Implementado | `benchmarks/issue24/strategies.py`, sem `Packet` ou CRC |
 | Metricas de mensagens e conclusao | Issue #24 | Especificado | Implementado | `benchmarks/issue24/runner.py`, JSON/CSV e testes |
 | Comparacao visual Issue #24 | Issue #24 | Especificado | Implementado | `benchmarks/issue24/viewer.py`, viewer local com nearest-neighbor |
-| Aplicação web local TX/RX | SDD secao 29 / Issue #39 | Planejado | Nao implementado | Interface localhost e serviço serial ainda não existem |
+| WebApp browser-only TX/RX | SDD seção 29 / Issue #39 | Planejado | Não implementado | GitHub Pages + Web Bluetooth; execução do codec Python existente no browser (PoC Pyodide pendente); sem backend local |
 
 ## Comportamento atual
 
@@ -217,3 +217,23 @@ Toda mudanca que alterar o comportamento deve atualizar, na mesma revisao:
 
 Uma mudanca apenas editorial nao altera a versao do software nem a versao do
 protocolo. Ela deve atualizar a revisao do SDD ou o changelog documental.
+
+
+## Diretriz arquitetural da WebApp (2026-11-25)
+
+A WebApp será estática e browser-only, hospedada em GitHub Pages/HTTPS. Não
+haverá backend, servidor localhost, instalação ou processo auxiliar na máquina
+do usuário. O Companion Bluetooth atual permanece como caminho primário via
+Web Bluetooth.
+
+**O codec Python já existente é reutilizado sem qualquer modificação.** A
+hipótese para executá-lo no navegador é Pyodide/WebAssembly, ainda pendente de
+prova de conceito. Nenhum arquivo, API, algoritmo, vetor binário ou teste do
+codec pode ser alterado para atender à WebApp. Se a execução browser-only não
+for viável sem modificar o codec, a implementação deve parar para decisão
+humana. Adaptadores e wrappers novos ficam fora da camada de codec.
+
+A biblioteca meshcore.js é candidata para conexão BLE e operações do
+Companion; API, licença e suporte ao envio/recepção binária de grupo ainda
+precisam ser validados. Chrome/Edge desktop são o alvo inicial; Linux deve ser
+testado cedo. Não há integração MeshCore real comprovada nesta revisão.
