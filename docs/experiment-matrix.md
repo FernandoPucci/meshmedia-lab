@@ -3,9 +3,10 @@
 Este documento define como comparar codecs e controle de erros sem confundir
 medicoes do laboratorio local com resultados de radio real.
 
-**Estado:** matriz proposta para a Etapa A; nenhum executor geral de benchmarks
-foi implementado nesta etapa. O executor específico do experimento RGB332 não
-substitui esse framework geral.
+**Estado:** matriz proposta; o contrato abstrato FEC da Issue #19 foi
+implementado, mas nenhum algoritmo FEC nem executor geral de benchmarks foi
+implementado. O executor específico do experimento RGB332 não substitui esse
+framework geral.
 
 ## 1. Objetivo
 

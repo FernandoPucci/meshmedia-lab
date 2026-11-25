@@ -19,6 +19,7 @@ codec.
 | Fragmenter | `src/meshmedia_lab/protocol/fragmenter.py` |
 | Reassembler | `src/meshmedia_lab/protocol/reassembler.py` |
 | CRC | `src/meshmedia_lab/protocol/crc.py` |
+| Contrato FEC abstrato | `src/meshmedia_lab/fec/contract.py` |
 | Packet/Header | `src/meshmedia_lab/protocol/packet.py` |
 | Transmitter | `src/meshmedia_lab/transport/transmitter.py` |
 | Receiver | `src/meshmedia_lab/transport/receiver.py` |
@@ -137,7 +138,7 @@ validado antes do parser. Legado comeca diretamente com dados, mesmo "TD".
 
 ## Interface FEC na arquitetura
 
-FEC nao e parte do encoder de imagem nem do transporte. A camada proposta fica
+FEC nao e parte do encoder de imagem nem do transporte. A camada implementada fica
 entre os bytes codificados e a fragmentacao:
 
 ```mermaid
@@ -155,9 +156,10 @@ flowchart LR
     K --> L[Reassembler e Image Decoder]
 ```
 
-O contrato de FEC esta documentado em `docs/error-control.md`. Nao existe
-implementacao FEC no pacote atual, e Reed-Solomon continua sendo candidato
-experimental.
+O contrato abstrato de FEC esta implementado em
+`src/meshmedia_lab/fec/contract.py` e documentado em
+`docs/error-control.md`. Ele nao gera reparos nem integra o pipeline, o
+protocolo ou o transporte. Reed-Solomon continua sendo candidato experimental.
 
 ## Execucao
 

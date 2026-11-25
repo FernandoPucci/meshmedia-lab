@@ -7,7 +7,8 @@ proposta experimental.
 | Item | Estado atual |
 |---|---|
 | CRC-16/CCITT-FALSE | Implementado por pacote |
-| FEC | Nao implementado |
+| Contrato abstrato FEC | Implementado; sem algoritmo concreto |
+| FEC funcional | Nao implementado |
 | Reed-Solomon | Nao implementado; candidato para experimento |
 | Retransmissao seletiva | Nao implementada |
 
@@ -101,23 +102,39 @@ maior que o custo de alguns simbolos de reparo. A redundancia, entretanto,
 aumenta o numero de bytes e pode piorar a ocupacao do canal quando a perda e
 baixa.
 
-### 4.1 Interface abstrata proposta
+### 4.1 Contrato abstrato da Issue #19
 
 A interface FEC deve ser independente do algoritmo. Ela pertence a uma camada
 de laboratorio entre os dados codificados e a fragmentacao; nao deve obrigar o
 protocolo a conhecer Reed-Solomon.
 
-O contrato logico proposto e:
+O contrato abstrato da Issue #19 foi materializado como uma API Python
+independente de algoritmo em `src/meshmedia_lab/fec/`. A camada continua
+separada do protocolo MM1, do CRC, dos codecs e dos transportes.
+
+Os tipos, validadores e protocolos estao em
+[`src/meshmedia_lab/fec/contract.py`](../src/meshmedia_lab/fec/contract.py),
+com exports controlados por `src/meshmedia_lab/fec/__init__.py`. O contrato e
+testado por [`tests/unit/test_fec.py`](../tests/unit/test_fec.py) usando uma
+implementacao fake, sem alegar recuperacao matematica.
+
+O contrato logico e:
 
 ```text
 FecEncoder.encode(source_block, config)
     -> EncodedBlock(source_symbols, repair_symbols, metadata)
 
-FecDecoder.decode(received_symbols, erasures, config)
+FecDecoder.decode(received_symbols, erasures, config, metadata)
     -> DecodeResult(source_block, recovered_symbols, success, reason)
 ```
 
-Os nomes acima sao contrato documental, nao API implementada.
+O decoder recebe os metadados locais do bloco porque somente `config` nao
+carrega o comprimento original necessario para remover padding. Esse argumento
+nao representa um campo de pacote e nao altera o wire format MM1 v1.
+
+Os contratos de encoder e decoder usarao `typing.Protocol`, seguindo as
+interfaces estruturais existentes no projeto. Nao sera criada uma hierarquia
+`ABC` paralela.
 
 #### Configuracao
 
@@ -133,6 +150,17 @@ Os nomes acima sao contrato documental, nao API implementada.
 | `interleaving_depth` | Profundidade de intercalacao, ou zero |
 | `padding_policy` | Regra para completar o ultimo bloco |
 | `incomplete_block_policy` | Regra para bloco menor que `k` |
+
+As politicas serao tipos explicitos:
+
+- `PaddingPolicy.REJECT`: qualquer padding necessario rejeita o bloco;
+- `PaddingPolicy.ZERO_PAD`: permite completar bytes com zero;
+- `IncompleteBlockPolicy.REJECT`: rejeita menos de `k` simbolos de origem;
+- `IncompleteBlockPolicy.PAD_TO_K`: completa o bloco ate `k` simbolos.
+
+O comprimento original e a quantidade de padding serao preservados em
+metadados locais imutaveis. Nenhuma dessas politicas sera serializada nesta
+Issue.
 
 Uma configuracao invalida deve falhar antes de codificar. Exemplos: simbolo
 com tamanho zero, `k` zero, `r` negativo, `n` diferente de `k + r` quando o
@@ -198,8 +226,9 @@ flowchart LR
 ```
 
 A interface deve permitir Hamming, BCH, Reed-Solomon ou outro algoritmo no
-futuro sem modificar o contrato do codec de imagem. Nenhuma implementacao FEC
-ou classe de interface e criada nesta Etapa A.
+futuro sem modificar o contrato do codec de imagem. A Issue #19 implementa
+somente o contrato e suas validacoes; nenhum algoritmo concreto ou recuperacao
+FEC funcional foi implementado.
 
 ### FEC, retransmissao e CRC
 

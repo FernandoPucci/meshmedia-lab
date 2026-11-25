@@ -543,7 +543,8 @@ Isso permite detectar corrupção sem precisar invalidar necessariamente toda a 
 
 # 9. Recuperação de erros
 
-**Status atual: FEC e retransmissao ainda nao implementados.**
+**Status atual: contrato abstrato FEC implementado; algoritmos FEC e
+retransmissao ainda nao implementados.**
 
 O MVP atual descarta pacotes invalidos e exige todos os fragmentos para concluir
 a imagem. As subsecoes seguintes descrevem alternativas de projeto e nao devem
@@ -1323,11 +1324,12 @@ Avaliar a reconstrução da imagem.
 
 ## Fase 5 — Reed-Solomon (PLANEJADA; NAO INICIADA)
 
-O contrato abstrato de FEC foi especificado na Etapa A em
-[`docs/error-control.md`](../docs/error-control.md), mas nao existe modulo FEC
-no codigo.
+O contrato abstrato de FEC da Issue #19 esta implementado em
+`src/meshmedia_lab/fec/`, com testes unitarios independentes de algoritmo.
+Esta fase continua reservada para a implementacao experimental de
+Reed-Solomon; ela nao foi iniciada.
 
-Implementar FEC.
+Implementar um algoritmo FEC concreto.
 
 Experimentar diferentes configurações.
 
