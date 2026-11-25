@@ -123,6 +123,25 @@ atual envia um símbolo FEC por mensagem, gerando overhead muito elevado.
 Se a prioridade for reduzir bytes e mensagens, use **CRC-only** como baseline.
 O RS-only deve permanecer restrito ao laboratório.
 
+### Recomendação explícita para 64x64 pensando em MeshCore
+
+Para `64x64` com grayscale 16 níveis:
+
+| Opção | Mensagens | Bytes MM1 | Recuperação degradada |
+|---|---:|---:|---:|
+| CRC-only | 32 | 2.720 | 17,14% |
+| CRC+RS(32,20) | 3.296 | 224.128 | 76,67% |
+
+**Escolha recomendada para o packetizer atual:** **CRC-only**, caso o objetivo
+seja uma transmissão MeshCore com custo de mensagens controlado. O
+`CRC+RS(32,20)` é a melhor opção apenas quando a prioridade absoluta for
+recuperação; seu overhead atual é alto demais para ser tratado como uma
+configuração de produção.
+
+Antes de usar FEC em MeshCore, deve-se avaliar agregação de símbolos FEC,
+fragmentação compatível com o payload real e airtime. O experimento atual usa
+payload MM1 de 64 bytes e não inclui o envelope MeshCore real.
+
 ## Artefatos
 
 - `config/experiment-matrix.json`: matriz normativa da Issue #24;

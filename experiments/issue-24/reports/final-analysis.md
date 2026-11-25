@@ -15,6 +15,13 @@
 | RS-only(32,24) | 32.94% | 6252.34% | 1978.36 ms |
 | RS-only(32,28) | 16.11% | 5364.97% | 1609.38 ms |
 
+## Recomendação específica para 64x64 e MeshCore
+
+Para 64x64, CRC-only usa em média 32 mensagens e 2720 bytes MM1, com 32.81% de overhead.
+CRC+RS(32,20) recuperou 76.67% dos cenários degradados, mas usa em média 3296 mensagens e 224128 bytes MM1 (10843.75% de overhead).
+**Escolha explícita:** para uma transmissão MeshCore 64x64 com o packetizer atual, prefira CRC-only se o objetivo for manter o custo de mensagens controlado. CRC+RS(32,20) só deve ser escolhido quando a prioridade for recuperação e o custo extremo tiver sido aceito.
+Antes de recomendar CRC+RS para produção, será necessário agregar símbolos FEC por mensagem ou validar outro enquadramento MeshCore. Esta conclusão é de simulação local, não de rádio real.
+
 ## Respostas
 
 1. **Menor overhead:** CRC-only no caminho MM1 legado, com 32.81% no cenário sem falhas. O RS-only possui enquadramento diferente e não inclui header/CRC MM1.

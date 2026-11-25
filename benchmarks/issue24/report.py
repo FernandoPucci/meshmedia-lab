@@ -248,6 +248,29 @@ def _write_final_analysis(
         overheads,
         key=lambda key: overheads[key] if overheads[key] is not None else float("inf"),
     )
+    records_64 = [
+        record
+        for record in records
+        if record.get("resolution") == "64x64"
+    ]
+    no_fail_64 = [
+        record
+        for record in records_64
+        if record.get("scenario_id") == "NO-FAIL"
+    ]
+    degraded_64 = [
+        record
+        for record in records_64
+        if record.get("scenario_id") != "NO-FAIL"
+    ]
+    grouped_no_fail_64 = _records_by(no_fail_64, "strategy_id")
+    grouped_degraded_64 = _records_by(degraded_64, "strategy_id")
+    crc_only_64 = grouped_no_fail_64.get(("crc-only",), [])
+    crc_rs_20_64 = grouped_no_fail_64.get(("crc+rs-rs32-20-12",), [])
+    crc_rs_20_64_degraded = grouped_degraded_64.get(
+        ("crc+rs-rs32-20-12",),
+        [],
+    )
 
     lines = [
         "# Issue #24 — análise final",
@@ -267,6 +290,53 @@ def _write_final_analysis(
             f"| {_display_strategy(strategy)} | "
             f"{degraded_success[strategy] * 100:.2f}% | "
             f"{overhead:.2f}% | {duration / 1_000_000:.2f} ms |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Recomendação específica para 64x64 e MeshCore",
+            "",
+        ]
+    )
+    if crc_only_64 and crc_rs_20_64 and crc_rs_20_64_degraded:
+        lines.extend(
+            [
+                (
+                    f"Para 64x64, CRC-only usa em média "
+                    f"{_average(crc_only_64, 'messages_sent'):.0f} mensagens "
+                    f"e {_average(crc_only_64, 'wire_bytes'):.0f} bytes MM1, "
+                    f"com {_average(crc_only_64, 'overhead_percent'):.2f}% "
+                    "de overhead."
+                ),
+                (
+                    f"CRC+RS(32,20) recuperou "
+                    f"{mean(bool(record.get('reconstruction_integral')) for record in crc_rs_20_64_degraded) * 100:.2f}% "
+                    "dos cenários degradados, mas usa em média "
+                    f"{_average(crc_rs_20_64, 'messages_sent'):.0f} mensagens "
+                    f"e {_average(crc_rs_20_64, 'wire_bytes'):.0f} bytes MM1 "
+                    f"({_average(crc_rs_20_64, 'overhead_percent'):.2f}% "
+                    "de overhead)."
+                ),
+                (
+                    "**Escolha explícita:** para uma transmissão MeshCore "
+                    "64x64 com o packetizer atual, prefira CRC-only se o "
+                    "objetivo for manter o custo de mensagens controlado. "
+                    "CRC+RS(32,20) só deve ser escolhido quando a prioridade "
+                    "for recuperação e o custo extremo tiver sido aceito."
+                ),
+                (
+                    "Antes de recomendar CRC+RS para produção, será necessário "
+                    "agregar símbolos FEC por mensagem ou validar outro "
+                    "enquadramento MeshCore. Esta conclusão é de simulação "
+                    "local, não de rádio real."
+                ),
+            ]
+        )
+    else:
+        lines.append(
+            "A recomendação específica para 64x64 estará disponível quando "
+            "essa resolução estiver presente no conjunto de resultados."
         )
 
     answer_lines = [
