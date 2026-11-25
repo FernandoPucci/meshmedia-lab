@@ -10,7 +10,7 @@ mas esta matriz e a referencia para distinguir proposta, plano e implementacao.
 |---|---|
 | Versao do software | `0.1.0` |
 | Versao do protocolo binario | `1` |
-| Revisao do SDD | `0.4.0-draft` |
+| Revisao do SDD | `0.5.0-draft` |
 | Conformidade | Parcial |
 | Ultima revisao | 2026-11-24 |
 
@@ -54,7 +54,7 @@ que a capacidade existe.
 | Transmissao progressiva | Secao 5 e Fase 8 | Planejado | Nao implementado | Codec atual gera uma representacao unica |
 | Integracao MeshCore | Secao 17 e Fase 9 | Planejado | Nao implementado | Sem adaptador; limites em `docs/meshcore-reference.md` |
 | Perfil de transmissao parametrizado | Etapa A | Proposto | Nao implementado | `docs/transmission-profile.md`; sem presets no codigo |
-| Transmission Descriptor inline | Etapa A | Proposto | Nao implementado | `docs/transmission-descriptor.md`; sem parser ou serializacao |
+| Transmission Descriptor inline | Issue #17 / ADR 0004 | Contrato v1 definido | Implementado localmente nesta branch; pendente de revisao/integracao | `protocol/descriptor.py`, fragmenter/reassembler, TX/RX, `tests/unit/test_descriptor.py`, `tests/integration/test_descriptor_apps.py` |
 | Codec RGB332 | Issue #38 / Fase 7 | Aprovado | Implementado | `src/meshmedia_lab/codec/rgb332.py`, testes unitarios, pipeline e aplicativos locais |
 | Registro RGB332 no MM1 v1 | Issue #38 / Fase 7 | Aprovado sem alterar layout | Implementado | `media.py` (`codec=0x02`, `levels=0`), `packet.py`, testes UDP locais |
 | Limite grayscale de 128 x 128 | Ordem de trabalho / Etapa B | Implementado | Implementado | `media.py`, `codec/encoder.py`, `tests/unit/test_codec.py` e `tests/unit/test_protocol.py` |
@@ -84,11 +84,13 @@ Consequentemente, uma perda ou uma corrupcao detectada pelo CRC torna a
 transmissao incompleta no MVP. FEC e retransmissao sao alternativas futuras,
 nao comportamentos disponiveis atualmente.
 
-O modo legado continua sendo o unico caminho implementado. A extensao proposta
-de descritor coloca `marker + descriptor_length + descriptor_body` no payload do
-primeiro fragmento, mas ainda nao possui marcador final, parser, testes ou
-codigo de reassemblagem. Ela nao altera a classificacao do protocolo v1 nem
-deve ser tratada como implementada.
+O modo legado continua default. O modo `descriptor` usa flag `0x04` em todos os
+pacotes e prefixo `TD | 16 | corpo v1` no fragmento zero. O modelo/parser valida
+metadados e comprimento, o reassembler limita dados fora de ordem e rejeita
+inconsistencias sem fallback; TX/RX locais e pipeline aceitam os dois modos.
+Testes fixam os bytes legados, o CRC e casos positivos/negativos. O corpo atual
+nao suporta FEC, compressao ou parametros extras. A entrega nesta branch nao
+representa por si so encerramento das Issues #17, #18 ou do agrupador #5.
 
 ## Propostas que ainda nao sao protocolo
 
@@ -101,10 +103,38 @@ Em particular, `FEC_PRESENT` aparece no cabecalho conceitual do SDD, mas ainda
 nao existe nas flags de `packet.py`. A matriz deve continuar marcando essa
 capacidade como proposta.
 
-O descritor inline segue a mesma regra. O cabecalho de 19 bytes, os campos
-atuais e o CRC nao podem ser modificados silenciosamente. Enquanto a extensao
-nao for revisada e implementada com testes, o primeiro payload continua sendo
-somente dados codificados.
+O ADR 0004 registra explicitamente a extensao opcional do descritor, sem mudar
+os bytes legados, o cabecalho de 19 bytes ou o CRC. O envio estendido exige RX
+atualizado; nao existe negociacao automatica. Futuras alteracoes dessa extensao
+continuam sujeitas a especificacao e testes de compatibilidade.
+
+## Verificacao local do descritor (2026-11-24)
+
+Branch `feature/transmission-descriptor`, baseada em `origin/master` `6c9a064`
+(PR #42). Esta verificacao local nao significa merge ou fechamento de Issues.
+
+```bash
+PYTHONPATH=src:. python3 -m unittest discover -s tests -p 'test_*.py' -v
+```
+
+Resultado: 73 testes executados com sucesso, incluindo processos TX/RX UDP
+independentes e comparacao de todos os pixels reconstruidos, ambos os codecs,
+vetores fixos e permutacoes com seed 17. Os vetores CRC legados tambem foram
+conferidos com `binascii.crc_hqx(..., 0xffff)` da biblioteca padrao.
+Uma execucao intermediaria detectou erro na formatacao dos novos logs; ele foi
+corrigido e a suite completa foi reexecutada.
+
+`git diff --check`: sem problemas. Comandos opcionais tentados:
+
+```bash
+python3 -m pytest -q
+ruff check .
+```
+
+Indisponiveis: `No module named pytest` (exit 1) e `ruff: comando nao encontrado`
+(exit 127). Nenhuma dependencia foi adicionada/instalada. Sem ensaio MeshCore,
+radio ou FEC; resultados anteriores do benchmark RGB332 nao foram reproduzidos
+nem alterados.
 
 ## Como atualizar a matriz
 

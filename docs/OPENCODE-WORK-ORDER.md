@@ -3,7 +3,7 @@
 - **Objetivo:** orientar o OpenCode na evolucao incremental do MM1 a partir das decisoes de arquitetura acordadas em 2026-11-24.
 - **Abordagem:** Specification-Driven Development (SDD).
 - **Estado deste documento:** requisitos e plano de trabalho; nao representa implementacao concluida.
-- **Baseline conhecida:** protocolo binario MM1 v1; implementacao Python 0.1.0; SDD 0.4.0-draft.
+- **Baseline conhecida:** protocolo binario MM1 v1; implementacao Python 0.1.0; SDD 0.5.0-draft.
 - **Limite inicial de imagem:** 128 x 128 pixels.
 
 Este documento complementa o SDD e nao o substitui. Antes de alterar codigo, conferir o estado real da branch e os documentos atuais. Atualizar a matriz de implementacao e o changelog quando houver mudanca efetiva.
@@ -40,6 +40,16 @@ Este documento complementa o SDD e nao o substitui. Antes de alterar codigo, con
 - Compressao (incluindo RLE) deve ser identificada separadamente do formato de cor/codec, caso essa separacao seja adotada no desenho. Nao presumir que RLE ja esteja implementado.
 
 ### 1.4 Transmission Descriptor
+
+Atualizacao apos a PR #42: o ADR 0004 fecha o contrato inline da Issue #17,
+autorizado para implementacao em branch apartada apos a apresentacao da proposta.
+Usar flag `0x04`, marcador `TD`, corpo v1 big-endian fixo de 16 bytes,
+encoded_length uint32 obrigatorio e comparacao estrita de metadados duplicados.
+O modo legado e seu default permanecem inalterados. A proposta anterior da
+Etapa A de nao repetir metadados e substituida por essa decisao rastreavel.
+FEC continua sem implementacao; futuras alteracoes exigem nova revisao.
+Os itens a seguir registram a ordem original da Etapa A, ja materializada
+no contrato `docs/transmission-descriptor.md`:
 
 - Especificar um descritor de transmissao enviado no inicio de cada transmissao.
 - O descritor deve informar ao receptor os parametros necessarios para interpretar os dados sem depender de configuracao local compartilhada.

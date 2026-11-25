@@ -7,6 +7,7 @@ import logging
 
 from meshmedia_lab.codec.encoder import ImageEncoder
 from meshmedia_lab.codec.rgb332 import Rgb332Encoder
+from meshmedia_lab.protocol.descriptor import TransmissionDescriptor
 from meshmedia_lab.protocol.fragmenter import Fragmenter
 from meshmedia_lab.transport.udp import UdpSender
 
@@ -43,6 +44,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--image-id", type=int, default=1, help="transmission image ID")
     parser.add_argument(
+        "--transmission-mode",
+        choices=("legacy", "descriptor"),
+        default="legacy",
+        help="legacy default; descriptor requires an updated receiver",
+    )
+    parser.add_argument(
         "--log-level",
         default="INFO",
         choices=("DEBUG", "INFO", "WARNING", "ERROR"),
@@ -75,19 +82,26 @@ def main(argv: list[str] | None = None) -> int:
         height,
     )
 
+    descriptor = (
+        TransmissionDescriptor(metadata=encoded.metadata, encoded_length=len(encoded.data))
+        if args.transmission_mode == "descriptor"
+        else None
+    )
     packets = Fragmenter(max_payload_size=args.payload).fragment(
         encoded.data,
         image_id=args.image_id,
         metadata=encoded.metadata,
+        descriptor=descriptor,
     )
     LOGGER.info(
         "prepared image_id=%d codec=%s encoded_bytes=%d messages=%d "
-        "payload_limit=%d",
+        "payload_limit=%d mode=%s",
         args.image_id,
         args.codec,
         len(encoded.data),
         len(packets),
         args.payload,
+        args.transmission_mode,
     )
 
     stats = PacketStats()

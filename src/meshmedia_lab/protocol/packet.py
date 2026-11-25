@@ -10,6 +10,7 @@ from .crc import crc16
 MAGIC = b"MM"
 FLAG_FIRST_FRAGMENT = 0x01
 FLAG_LAST_FRAGMENT = 0x02
+FLAG_INLINE_DESCRIPTOR = 0x04
 _HEADER = struct.Struct("!2sBBBBHHHHHHB")
 _CRC = struct.Struct("!H")
 

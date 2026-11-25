@@ -4,7 +4,14 @@ from dataclasses import dataclass
 
 from meshmedia_lab.media import ImageMetadata
 
-from .packet import FLAG_FIRST_FRAGMENT, FLAG_LAST_FRAGMENT, Packet, PacketError
+from .descriptor import TransmissionDescriptor
+from .packet import (
+    FLAG_FIRST_FRAGMENT,
+    FLAG_INLINE_DESCRIPTOR,
+    FLAG_LAST_FRAGMENT,
+    Packet,
+    PacketError,
+)
 
 
 class FragmentationError(ValueError):
@@ -27,15 +34,25 @@ class Fragmenter:
         *,
         image_id: int,
         metadata: ImageMetadata,
+        descriptor: TransmissionDescriptor | None = None,
     ) -> tuple[Packet, ...]:
         data = bytes(data)
+        if descriptor is not None:
+            if descriptor.metadata != metadata:
+                raise FragmentationError("descriptor and packet metadata differ")
+            if descriptor.encoded_length != len(data):
+                raise FragmentationError("data length does not match descriptor")
+            prefix = descriptor.to_bytes()
+            if len(prefix) > self.max_payload_size:
+                raise FragmentationError("payload limit cannot fit the descriptor")
+            data = prefix + data
         total_fragments = max(1, (len(data) + self.max_payload_size - 1) // self.max_payload_size)
         if total_fragments > 0xFFFF:
             raise FragmentationError("encoded data requires too many fragments")
 
         packets = []
         for fragment_number, offset in enumerate(range(0, len(data), self.max_payload_size)):
-            flags = 0
+            flags = FLAG_INLINE_DESCRIPTOR if descriptor is not None else 0
             if fragment_number == 0:
                 flags |= FLAG_FIRST_FRAGMENT
             if fragment_number == total_fragments - 1:

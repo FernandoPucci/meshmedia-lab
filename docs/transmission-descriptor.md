@@ -1,40 +1,17 @@
 # Transmission Descriptor no MM1 v1
 
-Este documento especifica a proposta de um descritor compacto embutido no
-primeiro fragmento de uma transmissao MM1 v1. O descritor orienta o receptor
-sem criar uma mensagem adicional e sem alterar o cabecalho v1 de 19 bytes.
+Contrato da extensao inline da Issue #17, conforme ADR 0004. O estado de entrega
+esta em `implementation-status.md`. Nenhum header, campo existente, FIRST/LAST
+ou algoritmo CRC e removido ou reinterpretado.
 
-**Estado:** proposto; nao implementado.
+## 1. Envelope e selecao explicita
 
-## 1. Objetivo
-
-O receptor deve conseguir decidir como interpretar os dados sem receber uma
-configuracao escondida por outro canal. O descritor informa os parametros que
-nao podem ser inferidos com seguranca, mas evita repetir no payload campos que
-ja existem no cabecalho de cada pacote v1.
-
-O descritor nao e um pacote separado. Ele e um prefixo do payload do primeiro
-fragmento:
-
-```text
-Pacote 0:
-  [header MM1 v1][marker][descriptor_length][descriptor_body][data_0][CRC]
-
-Pacotes 1..N:
-  [header MM1 v1][data_i][CRC]
-```
-
-O primeiro fragmento continua sendo identificado por `FLAG_FIRST_FRAGMENT`.
-Os bytes do descritor fazem parte do payload protegido pelo CRC daquele pacote.
-
-## 2. Formato v1 que nao muda
-
-O envelope implementado continua sendo:
+O header continua big-endian com 19 bytes:
 
 ```text
 offset  tamanho  campo
 0       2        magic = "MM"
-2       1        protocol_version
+2       1        protocol_version = 1
 3       1        media_type
 4       1        codec
 5       1        flags
@@ -46,222 +23,170 @@ offset  tamanho  campo
 16      2        levels
 18      1        payload_length
 19      P        payload
-19 + P  2        CRC-16/CCITT-FALSE
+19 + P  2        CRC-16/CCITT-FALSE(header + payload)
 ```
 
-Todos os inteiros do pacote MM1 v1 usam ordem de rede (big-endian). O CRC e
-calculado sobre os 19 bytes do cabecalho e os `P` bytes de payload. O pacote
-completo tem `P + 21` bytes.
+Flags `FIRST_FRAGMENT=0x01`, `LAST_FRAGMENT=0x02` e a extensao explicitamente
+registrada `INLINE_DESCRIPTOR=0x04`. Esta ultima aparece em **todos** os pacotes
+estendidos. Flags esperadas: unico `0x07`, primeiro `0x05`, meio `0x04`,
+ultimo `0x06`. Flags desconhecidas ou FIRST/LAST incoerentes invalidam o modo
+estendido. A validacao historica do modo legado permanece inalterada.
 
-O descritor nao repete estes campos do cabecalho:
+Sem `0x04`, o payload inteiro e dado legado, mesmo comecando por "TD".
+Com `0x04`, o prefixo e obrigatorio no fragmento numero zero; qualquer erro
+invalida a transmissao, sem fallback. Nos demais fragmentos todos os bytes sao
+dados, inclusive quando comecam por "TD". Nao ha varredura de marcadores.
 
-- `image_id`, que associa a transmissao;
-- `fragment_number` e `total_fragments`;
-- `media_type`;
-- `codec`;
-- `width` e `height`;
-- `levels` quando o codec grayscale usa o campo atual.
-
-Essa escolha reduz o tamanho do prefixo e evita uma segunda fonte de verdade.
-
-## 3. Prefixo do descritor
-
-A codificacao abaixo e uma proposta para revisao humana. Ela define a
-estrutura necessaria sem aprovar valores finais para o wire format.
+## 2. Prefixo e corpo do descritor
 
 ```text
-descriptor_prefix = marker | descriptor_length | descriptor_body
+fragmento 0: [header][54 44][10][corpo v1, 16 bytes][dados_0][CRC]
+demais:     [header][dados_i][CRC]
 ```
 
-| Campo | Tamanho candidato | Regra |
-|---|---:|---|
-| `marker` | 2 bytes | Sequencia reservada para distinguir o prefixo de dados |
-| `descriptor_length` | 1 byte | Tamanho de `descriptor_body`, sem marker e sem o proprio length |
-| `descriptor_body` | 0..255 bytes | Campos versionados e compactos |
+`descriptor_length` e uint8, mede apenas o corpo. Nesta versao deve ser **16**,
+nao zero, nem maior. A capacidade fisica do campo e 255, mas isso nao autoriza
+corpos maiores. O prefixo inteiro tem 19 bytes e deve caber no primeiro payload.
+Inteiros multibyte usam big-endian; endianess nao se aplica aos campos uint8.
 
-Um marcador de dois bytes reduz a chance de uma transmissao legada iniciar
-casualmente com uma sequencia reconhecida. O receptor deve tambem validar o
-comprimento, a versao e os campos antes de aceitar o modo com descritor.
+Offsets relativos ao inicio do **corpo**, isto e, payload offset 3:
 
-O valor concreto de `marker`, a versao inicial do descritor e a codificacao
-final do corpo continuam pendentes de revisao. Nao se deve inferir um
-descritor apenas porque os primeiros bytes do payload parecem validos.
+| Offset | Bytes | Campo | Regra v1 |
+|---:|---:|---|---|
+| 0 | 1 | descriptor_version | `1`; desconhecida rejeitada |
+| 1 | 1 | descriptor_flags | `0`; bits reservados rejeitados |
+| 2 | 1 | media_type | `0x01` IMAGE |
+| 3 | 1 | codec | `0x01` grayscale, `0x02` RGB332 |
+| 4 | 2 | width | Grayscale `1..128`, RGB332 `1..64` |
+| 6 | 2 | height | Independente de width; mesmos limites |
+| 8 | 2 | levels | Grayscale `2,4,8,16,256`; RGB332 `0` |
+| 10 | 4 | encoded_length | Obrigatorio, nao inclui descritor/header/CRC |
+| 14 | 1 | compression_id | `0` NONE; outros rejeitados |
+| 15 | 1 | codec_parameters_length | `0`; parametros extras nao suportados |
 
-Uma alternativa de codificacao do corpo e usar uma mascara de presenca seguida
-somente dos campos necessarios. Isso reduz o caso baseline sem FEC e permite
-adicionar parametros depois sem enviar zeros para campos ausentes. TLVs sao
-outra alternativa, com mais overhead e maior flexibilidade. A escolha deve
-considerar o limite de payload e vetores de compatibilidade.
+Nao e TLV: nao ha campos opcionais/repetidos. Campos ausentes, corpo excedente
+ou parametros extras sao invalidos, nao ignorados. `levels` parametriza
+grayscale; RGB332 identifica profundidade fixa RRRGGGBB. FEC e compressao futura
+nao sao implicitamente habilitados nem possuem campos neste corpo.
 
-## 4. Campos logicos do corpo
+O descritor repete media_type, codec, width, height e levels para autodescricao,
+**substituindo a proposta anterior da Etapa A que evitava duplicacao**. Todos
+devem coincidir com cada header MM1. O RX usa os metadados validados do descritor
+para decodificar; nunca escolhe um lado de uma inconsistencia. `image_id` e
+contadores permanecem unicamente no header. Protocolo e descritor possuem
+versoes independentes; este corpo exige protocolo MM1 `1`.
 
-Os campos abaixo precisam ser representados pela proposta, mas podem ser
-omitidos quando forem derivados do cabecalho ou quando o valor default for
-`NONE` explicitamente documentado.
+## 3. Comprimento e fragmentacao
 
-| Campo logico | Tipo candidato | Quando enviar |
+Sem compressao ou FEC, exigir:
+
+```text
+grayscale: encoded_length = ceil(width * height * log2(levels) / 8)
+RGB332:    encoded_length = width * height
+```
+
+Esse calculo e uma validacao do contrato, nao uma inferencia de codec a partir
+do tamanho recebido. Limites atuais: 16384 bytes grayscale (256 niveis),
+4096 RGB332. Valores zero, enormes ou inconsistentes sao rejeitados antes de
+alocar imagem ou buffer proporcional ao comprimento declarado.
+
+TX seleciona explicitamente `legacy` (default) ou `descriptor`.
+Para `D=19`, `P` limite do payload e `L` comprimento codificado:
+
+```text
+P < D: erro no TX, nenhum pacote enviado (descritor nao e dividido)
+P = D: fragmento zero so com descritor; dados comecam no fragmento 1
+P > D: ate P-D bytes de imagem no fragmento zero
+fragment_count = ceil((L + D) / P)
+wire_bytes = L + D + 21 * fragment_count
+```
+
+Todos os fragmentos depois do zero possuem pelo menos um byte de dado. Nao ha
+padding de fragmento. Com `P=64`:
+
+| Caso | L | Legado | Descritor | Bytes MM1 com descritor |
+|---|---:|---:|---:|---:|
+| Grayscale 16, 32x32 | 512 | 8 | 9 | 720 |
+| RGB332, 32x32 | 1024 | 16 | 17 | 1400 |
+| RGB332, 64x64 | 4096 | 64 | 65 | 5480 |
+
+Overhead do descritor e contabilizado separadamente do header/CRC; soma dos
+payloads inclui descritor. Nenhum valor desta tabela representa radio real.
+
+## 4. RX, ordem e limites de recursos
+
+1. Validar envelope, tamanho e CRC antes de interpretar descritor.
+2. Selecionar modo pela flag. Associar uma transmissao por reassembler usando
+   image_id, total_fragments, metadata e modo constantes.
+3. No modo estendido, validar metadata do header mesmo antes do fragmento zero.
+   A quantidade de fragmentos nao pode exceder `L+1` (cada fragmento posterior
+   tem dado nao vazio; o zero pode conter so descritor). Nunca prealocar a partir
+   de total_fragments ou encoded_length recebido.
+4. Armazenar dados fora de ordem em dicionario incremental, no maximo `L` bytes
+   uteis e `L+1` entradas; L e calculado dos metadados limitados, nao confiado
+   cegamente ao uint32 recebido. O descritor e validado antes de armazenar
+   dados do fragmento zero. Nao alocar pixels/decodificar sem descritor valido.
+5. Remover o prefixo somente do zero. Duplicata identica e idempotente; comparar
+   tambem o descritor nas duplicatas do zero. Duplicata conflitante, troca de modo,
+   metadata ou contadores invalida a transmissao estendida.
+6. Soma final deve ser exatamente encoded_length; fragmentos faltantes ou
+   dados a menos/a mais nunca produzem uma imagem. `is_complete` so e verdadeiro
+   com todos os fragmentos e descritor valido.
+7. Uma falha de reassemblagem estendida e terminal: liberar fragmentos e impedir
+   assemble/novos adds nessa instancia. Uma nova transmissao usa nova instancia.
+   Pacote de outro image_id e descartado sem destruir a transmissao corrente.
+
+O reassembler nao possui relogio. Timeout permanece responsabilidade do chamador;
+RX CLI usa `--timeout` de inatividade (default 30 s). Nao ha multiplexacao,
+timeout absoluto, identificacao autenticada do emissor ou recuperacao por FEC.
+Pacote rejeitado por CRC nao fornece indice confiavel de erasure.
+
+## 5. Compatibilidade e historico
+
+| TX | RX atualizado | RX legado |
 |---|---|---|
-| `descriptor_version` | `uint8` | Sempre no modo com descritor |
-| `descriptor_flags` | `uint8` | Sempre; indica campos opcionais |
-| `compression_id` | `uint8` | Quando diferente de `NONE` |
-| `encoded_length` | `uint16` | Quando o tamanho nao for derivavel |
-| `fec_algorithm` | `uint8` | Sempre que o modo FEC for descrito |
-| `symbol_size` | `uint16` | Quando FEC estiver habilitado |
-| `data_symbols` (`k`) | `uint16` | Quando FEC estiver habilitado |
-| `repair_symbols` (`r`) | `uint16` | Quando FEC estiver habilitado |
-| `block_symbols` | `uint16` | Quando nao for `k + r` |
-| `interleaving_depth` | `uint16` | Quando interleaving estiver habilitado |
-| `padding_policy` | `uint8` | Quando houver preenchimento definido |
-| `incomplete_block_policy` | `uint8` | Quando houver ultimo bloco parcial |
+| Legado | Aceito; sem inspecionar marcador | Baseline inalterado |
+| Descritor | Valida flag e descritor | Nao compativel |
 
-Para grayscale packed sem compressao e sem FEC, o tamanho dos dados pode ser
-calculado por:
+Receptores antigos podem ignorar flags desconhecidas e tentar decodificar o
+prefixo. Nao ha deteccao/negociacao automatica de capacidades: enviar descritor
+somente para RX conhecido. O modo legado mantem exatamente os vetores binarios,
+APIs e default. Nao ha promessa de interoperabilidade transparente.
 
-```text
-ceil(width * height * log2(levels) / 8)
-```
+ADR 0004 registra a troca da proposta preliminar (sem campos duplicados, length
+opcional, magic indefinido) pelo contrato atual aprovado para implementacao.
+O protocolo continua MM1 v1 com extensao opt-in; nao e chamado de v2.
+FEC, Reed-Solomon e outros formatos permanecem propostos; nao cabem implicitamente
+nesta versao. Nao se deve alterar este corpo silenciosamente para acrescenta-los.
 
-Nesse caso, `encoded_length`, `compression_id` e todos os campos FEC podem ser
-omitidos, desde que o modo baseline esteja explicitamente identificado.
+## 6. Vetores fixos
 
-Para RGB332 sem compressao, o tamanho derivavel e `width * height`. O codec
-`0x02` e implementado no envelope v1 com `levels=0`; o descritor continua
-desnecessario para os parametros fixos `3/3/2`.
-
-O descritor nunca deve conter um ID de perfil que esconda esses parametros.
-Uma configuracao experimental deve ser reproduzivel a partir dos valores
-transmitidos e registrados no experimento.
-
-## 5. Sequencia de transmissao
-
-```mermaid
-sequenceDiagram
-    participant A as Aplicacao TX
-    participant F as Fragmenter
-    participant T as Transporte
-    participant R as Receptor
-    participant Q as Reassembler
-    participant D as Decoder
-
-    A->>A: Seleciona codec e parametros explicitos
-    A->>A: Codifica a imagem
-    A->>F: Dados + metadados + configuracao FEC
-    F->>F: Monta prefixo do descritor
-    F->>F: Coloca descritor no payload do fragmento 0
-    F->>T: Fragmento 0 MM1 v1
-    F->>T: Fragmentos 1..N MM1 v1
-    T->>R: Pacotes em ordem ou fora de ordem
-    R->>R: Verifica tamanho, magic e CRC
-    R->>R: Identifica legado ou descritor inline
-    R->>R: Valida descritor, se presente
-    R->>Q: Entrega somente dados codificados
-    Q->>Q: Associa por image_id e ordena
-    Q->>Q: Verifica total_fragments e completude
-    Q->>D: Representacao codificada
-    D->>A: Imagem reconstruida
-```
-
-O descritor nao cria um novo contador de mensagens. O contador continua sendo
-`total_fragments`. O custo real e medido em bytes: o primeiro fragmento possui
-menos bytes de imagem e pode provocar um fragmento adicional se o payload
-estiver no limite.
-
-## 6. Ciclo de vida no receptor
-
-```mermaid
-stateDiagram-v2
-    [*] --> Aguardando
-    Aguardando --> Legado: primeiro pacote sem prefixo
-    Aguardando --> ValidandoDescritor: marker no fragmento 0
-    ValidandoDescritor --> Rejeitado: length ou CRC invalido
-    ValidandoDescritor --> Rejeitado: codec ou parametro desconhecido
-    ValidandoDescritor --> Recebendo: descritor valido
-    Legado --> Recebendo: metadados v1 validos
-    Recebendo --> Recebendo: fragmento fora de ordem
-    Recebendo --> Recebendo: duplicata identica
-    Recebendo --> Rejeitado: metadados conflitantes
-    Recebendo --> Completo: todos os fragmentos presentes
-    Recebendo --> Expirado: limite de espera atingido
-    Completo --> Decodificando
-    Decodificando --> [*]
-    Rejeitado --> [*]
-    Expirado --> [*]
-```
-
-### 6.1 Primeiro fragmento ausente
-
-No modo com descritor, os fragmentos posteriores podem chegar antes do
-fragmento 0. O receptor pode armazenar esses fragmentos em uma fila limitada,
-indexada por `image_id`, `total_fragments` e metadados v1. Ele nao deve
-decodificar nem aplicar uma configuracao FEC enquanto o descritor estiver
-ausente. Ao atingir o limite de memoria ou timeout, a transmissao e descartada.
-
-O tamanho da fila e o timeout sao politicas locais, nao campos do wire format.
-
-### 6.2 Duplicatas
-
-- Descritor identico para o mesmo `image_id`: aceitar sem substituir o estado.
-- Descritor diferente para o mesmo `image_id`: rejeitar a transmissao.
-- Fragmento identico: ignorar a repeticao.
-- Fragmento com mesmo numero e payload diferente: rejeitar a transmissao.
-
-### 6.3 Erros
-
-- Pacote menor que o cabecalho e CRC: descartar.
-- Magic, tamanho ou CRC invalidos: descartar.
-- `descriptor_length` maior que o payload disponivel: rejeitar o descritor.
-- Codec, compressao ou FEC desconhecidos: rejeitar o modo com descritor.
-- CRC invalido nao e corrigido pelo receptor atual.
-- Sem FEC implementado, uma perda ou descarte deixa a transmissao incompleta.
-
-## 7. Compatibilidade
-
-Existem dois modos deliberadamente diferentes dentro do ecossistema MM1 v1:
-
-| Modo | Primeiro payload | Receptor legado |
-|---|---|---|
-| V1 legado | Dados codificados | Compativel com o baseline |
-| V1 com descritor | Prefixo + dados codificados | Nao interpreta corretamente o prefixo |
-
-O protocolo v1 e mantido porque o cabecalho, o CRC e o modo legado nao mudam.
-Entretanto, a extensao com descritor nao e transparente para um receptor que
-nao a conhece. O transmissor deve selecionar o modo de acordo com a capacidade
-do receptor; nao ha negociacao automatica implementada nesta etapa.
-
-Nao e permitido:
-
-- alterar o significado de `FLAG_FIRST_FRAGMENT` ou `FLAG_LAST_FRAGMENT`;
-- usar uma flag reservada como se fosse o marcador sem uma decisao registrada;
-- remover `width`, `height`, `levels` ou outros campos do cabecalho v1;
-- chamar a extensao de v2;
-- marcar a extensao como implementada antes de haver codigo e testes.
-
-## 8. Relacao com o FEC
-
-O descritor pode anunciar uma configuracao FEC futura, mas nao implementa FEC.
-Uma implementacao posterior precisara definir como `fragment_number` mapeia
-para bloco e simbolo, ou propor campos adicionais dentro da extensao. O
-`Reassembler` atual somente concatena payloads e exige todos os fragmentos.
-
-O CRC continua sendo validado antes de um futuro decoder FEC. Um pacote
-rejeitado pelo CRC pode ser uma erasure conhecida, mas isso so tera efeito
-quando existir uma implementacao FEC.
-
-## 9. Vetores de exemplo conceituais
-
-### V1 legado
+Prefixos completos, sem header MM1/CRC:
 
 ```text
-fragment 0 payload = encoded_data[0:P]
-fragment 1 payload = encoded_data[P:2P]
+grayscale 2x2, levels=16, encoded_length=2:
+54 44 10 01 00 01 01 00 02 00 02 00 10 00 00 00 02 00 00
+
+RGB332 2x1, levels=0, encoded_length=2:
+54 44 10 01 00 01 02 00 02 00 01 00 00 00 00 00 02 00 00
 ```
 
-### V1 com descritor
+Pacotes completos de referencia: grayscale 2x2, levels 16, image_id 7,
+dados `08 f4`, limite de payload 64, incluindo CRC:
 
 ```text
-fragment 0 payload = marker | length | descriptor_body | encoded_data[0:P-D]
-fragment 1 payload = encoded_data[P-D:P-D+P]
+legado (23 bytes):
+4d 4d 01 01 01 03 00 07 00 00 00 01 00 02 00 02 00 10 02 08 f4 2c ee
+
+descritor (42 bytes):
+4d 4d 01 01 01 07 00 07 00 00 00 01 00 02 00 02 00 10 15
+54 44 10 01 00 01 01 00 02 00 02 00 10 00 00 00 02 00 00 08 f4 b7 23
 ```
 
-`D` inclui marker, length e body. O calculo final precisa considerar o ultimo
-fragmento e o `total_fragments` produzido pelo fragmenter.
+Mutacoes negativas a fixar em testes: marcador `58 44`; comprimento `0f`/`11`/
+`ff`; corpo truncado em cada offset; versao `02`; flags `01`; codec `ff`;
+media `02`; dimensoes zero ou acima dos limites; levels grayscale `32` ou
+RGB332 `16`; encoded_length `0`/`ffffffff`; compression `01`; parametros `01`.
+Tambem testar prefixo duplicado como corpo excedente, header/descritor
+divergentes, FIRST/LAST invalidos, mistura de modos, fragmento zero ausente,
+duplicata conflitante e comprimento final menor/maior.

@@ -121,6 +121,23 @@ PYTHONPATH=src:. python3 -m apps.local.tx \
 O RX seleciona o decoder pelo metadata recebido. `--codec` permanece uma
 opcao do TX; o default e `grayscale`.
 
+### Descritor inline opcional
+
+Adicione `--transmission-mode descriptor` ao TX para transmitir o contrato
+explicito de codec e parametros no primeiro payload. O RX atualizado aceita
+ambos os modos pela flag `0x04`, sem opcoes compartilhadas nem heuristicas.
+O header MM1 e o CRC nao mudam. O prefixo custa 19 bytes; com payload 64,
+RGB332 `32x32` passa de 16 a 17 mensagens, `64x64` de 64 a 65.
+
+O limite de payload deve ser pelo menos 19. Exatamente 19 permite fragmento
+zero somente com descritor. Dados finais devem ter o comprimento declarado
+exato. Erros do descritor sao terminais (exit 1, sem salvar imagem), inclusive
+com `--keep-listening`; um novo ensaio usa um novo RX. Timeout permanece de
+inatividade. Nao enviar esse modo a receptores legados. O default `legacy`
+mantem os bytes anteriores, mesmo quando os dados comecam por "TD".
+
+Contrato: [`docs/transmission-descriptor.md`](../docs/transmission-descriptor.md).
+
 ## Opcoes do TX
 
 | Opcao | Padrao | Descricao |
@@ -133,6 +150,7 @@ opcao do TX; o default e `grayscale`.
 | `--levels` | `16` | Quantidade de tons de grayscale. |
 | `--payload` | `64` | Bytes de payload por pacote. |
 | `--image-id` | `1` | Identificador da transmissao. |
+| `--transmission-mode` | `legacy` | `legacy` ou `descriptor` (RX atualizado). |
 | `--log-level` | `INFO` | Nivel `DEBUG`, `INFO`, `WARNING` ou `ERROR`. |
 | `--log-file` | vazio | Arquivo opcional para os logs. |
 
@@ -243,8 +261,10 @@ RX summary
 ```
 
 O valor `3/8` significa que o pacote atual e o terceiro de oito. O contador
-principal da imagem e `Total Fragments`. O resumo tambem separa payload util de
-bytes de cabecalho e CRC.
+principal da imagem e `Total Fragments`. O resumo separa bytes de cabecalho/CRC
+(`overhead_bytes`) e informa `descriptor_bytes` (zero no legado; 19 por
+fragmento zero recebido no modo descriptor). `payload_bytes` inclui o descritor;
+subtraia `descriptor_bytes` para obter bytes de imagem nesses datagramas.
 
 Para guardar os logs:
 

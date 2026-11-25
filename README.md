@@ -154,6 +154,11 @@ O repositorio tambem contem o codec RGB332 aprovado para `32x32` e `64x64`.
 As aplicacoes locais permitem selecionar `--codec grayscale` ou
 `--codec rgb332`; grayscale continua sendo o default.
 
+O TX aceita `--transmission-mode legacy|descriptor` (default `legacy`).
+O descritor inline opcional v1 usa flag `0x04`, marcador `TD` e prefixo de 19
+bytes somente no primeiro payload. Exige RX atualizado; nao ha negociacao
+automatica. Cabeçalho MM1 de 19 bytes e CRC permanecem inalterados.
+
 Ainda nao estao implementados FEC, Reed-Solomon, ACK/NACK, retransmissao
 seletiva, transmissao progressiva ou um adaptador MeshCore. Essas tecnicas
 aparecem no SDD como propostas e experimentos, nao como capacidades existentes.
@@ -170,8 +175,8 @@ Documentacao complementar:
 - [`docs/architecture.md`](docs/architecture.md): limites e fluxo dos componentes.
 - [`docs/transmission-profile.md`](docs/transmission-profile.md): parametros
   explicitos, codecs e limites do perfil.
-- [`docs/transmission-descriptor.md`](docs/transmission-descriptor.md): proposta
-  de descritor compacto no primeiro fragmento MM1 v1.
+- [`docs/transmission-descriptor.md`](docs/transmission-descriptor.md): contrato
+  do descritor inline opt-in no primeiro fragmento MM1 v1.
 - [`docs/experiment-matrix.md`](docs/experiment-matrix.md): cenarios, metricas
   e separacao entre simulacao e radio real.
 - [`docs/rgb332-experiment.md`](docs/rgb332-experiment.md): metodo, resultados
@@ -277,6 +282,8 @@ Parametros importantes:
 - `--image`: imagem de entrada aceita pelo Pillow.
 - `--resolution`: resolucao alvo no formato `LARGURAxALTURA`.
 - `--codec`: `grayscale` ou `rgb332`; o default e `grayscale`.
+- `--transmission-mode`: `legacy` (default) ou `descriptor`; o segundo exige
+  payload de pelo menos 19 bytes e RX atualizado.
 - `--levels`: quantidade de tons de grayscale.
 - `--payload`: quantidade maxima de bytes de dados por pacote.
 - `--image-id`: identificador da transmissao.
