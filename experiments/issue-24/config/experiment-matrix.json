@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "issue": 24,
+  "environment": "local-simulation",
+  "codec": {
+    "id": "grayscale",
+    "levels": 16,
+    "payload_limit": 64,
+    "transmission_mode": "legacy"
+  },
+  "fixtures": [
+    {
+      "id": "TEST-01",
+      "description": "geometria, linhas, bordas e blocos",
+      "seed": 24001
+    },
+    {
+      "id": "TEST-02",
+      "description": "gradientes e variacoes tonais",
+      "seed": 24002
+    },
+    {
+      "id": "TEST-03",
+      "description": "detalhes e padroes da imagem de teste existente",
+      "seed": 24003,
+      "source": "test-images/cat.jpeg"
+    }
+  ],
+  "resolutions": [
+    "32x32",
+    "64x64",
+    "128x128"
+  ],
+  "strategies": [
+    {
+      "id": "crc-only",
+      "fec": null
+    },
+    {
+      "id": "crc+rs",
+      "fec": "reed_solomon"
+    },
+    {
+      "id": "rs-only",
+      "fec": "reed_solomon"
+    }
+  ],
+  "fec_variants": [
+    {
+      "id": "RS(32,28)",
+      "data_symbols": 28,
+      "repair_symbols": 4,
+      "symbol_size": 1,
+      "interleaving_depth": 0
+    },
+    {
+      "id": "RS(32,24)",
+      "data_symbols": 24,
+      "repair_symbols": 8,
+      "symbol_size": 1,
+      "interleaving_depth": 0
+    },
+    {
+      "id": "RS(32,20)",
+      "data_symbols": 20,
+      "repair_symbols": 12,
+      "symbol_size": 1,
+      "interleaving_depth": 0
+    }
+  ],
+  "scenarios": [
+    {"id": "NO-FAIL", "loss_rate": 0.0, "corruption_rate": 0.0},
+    {"id": "LOSS-01", "loss_rate": 0.01, "corruption_rate": 0.0},
+    {"id": "LOSS-02", "loss_rate": 0.05, "corruption_rate": 0.0},
+    {"id": "LOSS-03", "loss_rate": 0.1, "corruption_rate": 0.0},
+    {"id": "LOSS-04", "loss_rate": 0.2, "corruption_rate": 0.0},
+    {"id": "LOSS-05", "loss_rate": 0.3, "corruption_rate": 0.0},
+    {"id": "CORRUPT-01", "loss_rate": 0.0, "corruption_rate": 0.01},
+    {"id": "CORRUPT-02", "loss_rate": 0.0, "corruption_rate": 0.05},
+    {"id": "CORRUPT-03", "loss_rate": 0.0, "corruption_rate": 0.1},
+    {"id": "CORRUPT-04", "loss_rate": 0.0, "corruption_rate": 0.2},
+    {"id": "MIX-01", "loss_rate": 0.01, "corruption_rate": 0.01},
+    {"id": "MIX-02", "loss_rate": 0.05, "corruption_rate": 0.05},
+    {"id": "MIX-03", "loss_rate": 0.1, "corruption_rate": 0.05},
+    {"id": "MIX-04", "loss_rate": 0.1, "corruption_rate": 0.1},
+    {"id": "MIX-05", "loss_rate": 0.2, "corruption_rate": 0.1}
+  ],
+  "repetitions": 10,
+  "seed_policy": "sha256(meshmedia-lab|issue-24|fixture|resolution|scenario|repetition)"
+}

@@ -3,10 +3,11 @@
 Este documento define como comparar codecs e controle de erros sem confundir
 medicoes do laboratorio local com resultados de radio real.
 
-**Estado:** matriz proposta; o contrato abstrato FEC da Issue #19, o algoritmo
-standalone Reed-Solomon da Issue #20 e a integracao local opt-in das Issues
-#21/#22 foram implementados. Ainda nao existe um executor geral de benchmarks.
-O executor específico do experimento RGB332 não substitui esse framework geral.
+**Estado:** matriz especificada para o executor da Issue #24; o contrato
+abstrato FEC da Issue #19, o algoritmo standalone Reed-Solomon da Issue #20 e
+a integracao local opt-in das Issues #21/#22 foram implementados. O executor
+geral ainda esta em implementacao. O executor específico do experimento RGB332
+não substitui esse framework geral.
 
 ## 1. Objetivo
 
@@ -127,13 +128,12 @@ comparacao.
 | F02 | CRC+RS(32,24) | 10% | 0% | simulacao | Executavel pelo pipeline |
 | F03 | CRC+RS(32,20) | 20% | 0% | simulacao | Executavel pelo pipeline |
 | F04 | CRC+RS | rajada | 0% | simulacao | Futuro; canal em rajada ausente |
-| R01 | RS-only | 10% | 0% | harness controlado | Futuro |
-| R02 | RS-only | 0% | erros conhecidos | harness controlado | Futuro |
+| R01 | RS-only | 10% | 0% | harness controlado | Executor Issue #24 |
+| R02 | RS-only | 0% | erros conhecidos | harness controlado | Executor Issue #24 |
 
-As linhas F representam a integracao local opt-in atual, mas ainda dependem de
-um executor geral para produzir comparacoes reproduziveis. As linhas R
-continuam sendo harnesses controlados e nao alteram o formato legado. O canal
-em rajada e as metricas gerais permanecem pendentes.
+As linhas F representam a integracao local opt-in atual. As linhas R sao
+harnesses controlados e nao alteram o formato legado. O canal em rajada
+permanece pendente e nao faz parte da Issue #24.
 
 ## 6. Variacao de codec e dimensao
 
@@ -387,3 +387,92 @@ locais. O resumo observado no TX e no RX foi:
 Esses ensaios sao smoke tests manuais, nao um executor de benchmark. O resultado
 nao inclui o envelope externo MeshCore nem decide entre `GRP_DATA`, `TXT_MSG` e
 `RAW_CUSTOM`.
+
+## 13. Harness da Issue #24
+
+### 13.1 Perfil controlado
+
+O primeiro executor geral fixa, para manter as comparacoes controladas:
+
+| Parametro | Valor |
+|---|---|
+| Codec | grayscale packed |
+| Niveis | 16 |
+| Payload | 64 bytes |
+| Modo MM1 | legacy |
+| Simbolo RS | 1 byte |
+| Interleaving | 0 |
+| Padding | `ZERO_PAD` |
+| Bloco incompleto | `PAD_TO_K` |
+| Repeticoes | 10 |
+
+As fixtures grayscale usam valores representaveis pelos 16 niveis para que o
+cenario sem falhas possa ser comparado byte a byte sem introduzir erro de
+quantizacao.
+
+### 13.2 Matriz completa
+
+As celulas da Issue #24 sao:
+
+- `TEST-01`, `TEST-02` e `TEST-03`;
+- `32x32`, `64x64` e `128x128`;
+- CRC-only;
+- CRC+RS(32,28), CRC+RS(32,24) e CRC+RS(32,20);
+- RS-only com as mesmas tres configuracoes;
+- `NO-FAIL`;
+- `LOSS-01` a `LOSS-05`;
+- `CORRUPT-01` a `CORRUPT-04`;
+- `MIX-01` a `MIX-05`;
+- dez repeticoes por celula.
+
+Isso totaliza 9.450 execucoes. O executor aceita filtros para smoke tests e
+retomada, mas uma execucao parcial deve ser identificada como parcial.
+
+### 13.3 Mensagens e conclusao
+
+Cada fragmento MM1 e contado como uma mensagem. No RS-only, cada frame FEC
+experimental e contado como uma unidade `rs_frame`, sem ser apresentado como
+mensagem MM1.
+
+Os resultados devem separar:
+
+| Campo | Definicao |
+|---|---|
+| `messages_sent` | unidades geradas pelo transmissor |
+| `messages_received` | unidades entregues pelo canal |
+| `messages_validated` | unidades aceitas pela camada de recepcao |
+| `messages_crc_rejected` | unidades rejeitadas pelo CRC |
+| `messages_used_to_conclude` | prefixo efetivamente suficiente para concluir |
+| `completion_message_index` | indice da unidade que permitiu a conclusao |
+
+O pipeline atual envia todos os pacotes mesmo quando o receptor ja possui
+simbolos suficientes. Portanto, `messages_used_to_conclude` mede suficiência,
+enquanto `messages_sent` mede o custo real do ensaio.
+
+### 13.4 Baseline historico sem FEC
+
+Os testes manuais anteriores usaram grayscale packed, 16 niveis, payload de
+64 bytes e o caminho MM1 legado. Esses valores permanecem como baseline
+historico:
+
+| Resolucao | Bytes codificados | Mensagens | Bytes MM1 | Overhead |
+|---|---:|---:|---:|---:|
+| `32x32` | 512 | 8 | 680 | 168 |
+| `64x64` | 2048 | 32 | 2720 | 672 |
+
+O `128x128` sera medido pelo novo executor e nao sera apresentado como resultado
+historico.
+
+### 13.5 Contagem FEC esperada
+
+Com o packetizer atual, que transporta um simbolo por frame/pacote:
+
+| Resolucao | CRC-only | RS(32,28) | RS(32,24) | RS(32,20) |
+|---|---:|---:|---:|---:|
+| `32x32` | 8 | 608 | 704 | 832 |
+| `64x64` | 32 | 2368 | 2752 | 3296 |
+| `128x128` | 128 | 9376 | 10944 | 13120 |
+
+Os valores sao expectativas derivadas do codec e devem ser confirmados pelos
+artefatos reais. Para RS-only, a coluna representa frames experimentais sem
+envelope MM1 ou CRC.

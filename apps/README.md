@@ -305,7 +305,9 @@ visualizador grafico.
 
 - UDP local nao simula automaticamente perda, latencia ou jitter de radio.
 - Nao existe ACK, NACK ou retransmissao.
-- FEC e Reed-Solomon ainda nao estao implementados.
+- FEC e Reed-Solomon estao implementados como extensao opt-in experimental no
+  pipeline local. O modo RS-only da Issue #24 existe somente no harness de
+  benchmarks e nao altera o MM1 v1.
 - RLE, JPEG baseline e transmissao progressiva ainda nao estao integrados.
 - O visualizador depende de um ambiente grafico; `--output` continua disponivel
   em ambientes headless.

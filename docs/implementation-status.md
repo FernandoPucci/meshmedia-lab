@@ -10,7 +10,7 @@ mas esta matriz e a referencia para distinguir proposta, plano e implementacao.
 |---|---|
 | Versao do software | `0.1.0` |
 | Versao do protocolo binario | `1` |
-| Revisao do SDD | `0.7.0-draft` |
+| Revisao do SDD | `0.8.0-draft` |
 | Conformidade | Parcial |
 | Ultima revisao | 2026-11-25 |
 
@@ -64,6 +64,11 @@ que a capacidade existe.
 | Limite grayscale de 128 x 128 | Ordem de trabalho / Etapa B | Implementado | Implementado | `media.py`, `codec/encoder.py`, `tests/unit/test_codec.py` e `tests/unit/test_protocol.py` |
 | Limite RGB332 de 64 x 64 | Perfil RGB332 / Etapa B | Implementado | Implementado | `codec/rgb332.py`, `tests/unit/test_rgb332.py` e `tests/integration/test_local_apps.py` |
 | Matriz de experimentos | Etapa A | Proposto | Parcial | `docs/experiment-matrix.md`; executor RGB332 isolado em `benchmarks/rgb332_experiment.py` |
+| Fixtures deterministicas da Issue #24 | Issue #24 | Especificado | Implementado | `benchmarks/issue24/fixtures.py`, testes de seed/paleta e manifest |
+| Executor geral CRC/FEC | Issue #24 / Etapa D | Especificado | Parcial | `benchmarks/issue24/`; smoke tests executados, matriz completa pendente |
+| Harness RS-only | Issue #24 | Isolado, sem MM1 v1 | Implementado | `benchmarks/issue24/strategies.py`, sem `Packet` ou CRC |
+| Metricas de mensagens e conclusao | Issue #24 | Especificado | Implementado | `benchmarks/issue24/runner.py`, JSON/CSV e testes |
+| Comparacao visual Issue #24 | Issue #24 | Especificado | Implementado | `benchmarks/issue24/viewer.py`, viewer local com nearest-neighbor |
 | Aplicação web local TX/RX | SDD secao 29 / Issue #39 | Planejado | Nao implementado | Interface localhost e serviço serial ainda não existem |
 
 ## Comportamento atual

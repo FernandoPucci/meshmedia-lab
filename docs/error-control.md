@@ -486,6 +486,34 @@ e somente um harness controlado e nao um modo do MM1 v1.
 - Nenhuma configuracao RS deve ser chamada de recomendada para producao antes
   dos experimentos.
 
+## 9. Harness RS-only e comparacao de mensagens
+
+O experimento da Issue #24 usa um caminho RS-only isolado. Ele reutiliza
+`FecTransmission`, `FecSymbolFrame` e a implementacao Reed-Solomon, mas nao
+cria `Packet`, nao calcula CRC e nao altera o MM1 v1. A ausencia conhecida por
+perda entra como erasure; uma corrupcao no byte do simbolo entra como erro
+desconhecido.
+
+O executor deve registrar separadamente:
+
+- frames/unidades enviados;
+- frames entregues e aceitos;
+- simbolos ausentes;
+- simbolos recuperados;
+- blocos recuperados ou falhos;
+- decoder bem-sucedido mas divergente da referencia.
+
+Para CRC-only e CRC+RS, uma mensagem e um fragmento MM1. Para RS-only, uma
+unidade e um frame FEC experimental e deve ser identificada como tal. A
+quantidade de unidades necessarias para a primeira conclusao valida e distinta
+da quantidade efetivamente enviada, pois o transmissor atual nao interrompe o
+envio antecipadamente.
+
+O overhead do RS-only nao pode ser comparado sem qualificacao ao overhead MM1:
+o primeiro nao possui os 19 bytes de cabecalho MM1 nem os 2 bytes de CRC. O
+relatorio deve exibir tanto os componentes individuais quanto o ambiente local
+de simulacao.
+
 ## Referencias
 
 - [Reed e Solomon, 1960](references.md#rs60)
