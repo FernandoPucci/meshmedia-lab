@@ -15,6 +15,8 @@ use in this experiment.
 """
 
 from collections.abc import Iterable
+from functools import cache
+from typing import ClassVar
 
 from .contract import (
     DecodeFailureReason,
@@ -54,6 +56,17 @@ class _GF256:
         _exp[exponent] = _exp[exponent - GF256_ORDER]
     exp = tuple(_exp)
     log = tuple(_log)
+    _multiply_table: ClassVar[list[tuple[int, ...]]] = []
+    for left in range(256):
+        row = []
+        for right in range(256):
+            row.append(
+                0
+                if left == 0 or right == 0
+                else exp[log[left] + log[right]]
+            )
+        _multiply_table.append(tuple(row))
+    multiply_table = tuple(_multiply_table)
 
     @classmethod
     def add(cls, left: int, right: int) -> int:
@@ -61,9 +74,7 @@ class _GF256:
 
     @classmethod
     def multiply(cls, left: int, right: int) -> int:
-        if left == 0 or right == 0:
-            return 0
-        return cls.exp[cls.log[left] + cls.log[right]]
+        return cls.multiply_table[left][right]
 
     @classmethod
     def inverse(cls, value: int) -> int:
@@ -327,6 +338,67 @@ def _evaluation_points(block_symbols: int) -> tuple[int, ...]:
     return tuple(_GF256.exp[index] for index in range(block_symbols))
 
 
+@cache
+def _evaluation_powers(
+    block_symbols: int,
+    maximum_power: int,
+) -> tuple[tuple[int, ...], ...]:
+    points = _evaluation_points(block_symbols)
+    return tuple(
+        tuple(
+            _GF256.power(point, exponent)
+            for exponent in range(maximum_power + 1)
+        )
+        for point in points
+    )
+
+
+@cache
+def _systematic_coefficients(
+    data_symbols: int,
+    block_symbols: int,
+) -> tuple[tuple[int, ...], ...]:
+    """Return the fixed source-to-codeword transform for one configuration."""
+
+    points = _evaluation_points(block_symbols)
+    source_points = points[:data_symbols]
+    basis_polynomials = []
+    for source_index in range(data_symbols):
+        values = [0] * data_symbols
+        values[source_index] = 1
+        basis_polynomials.append(
+            _interpolate(source_points, tuple(values))
+        )
+    return tuple(
+        tuple(
+            _polynomial_evaluate(polynomial, point)
+            for polynomial in basis_polynomials
+        )
+        for point in points
+    )
+
+
+def _codeword_values(
+    source_values: tuple[int, ...],
+    config: FecConfig,
+) -> tuple[int, ...]:
+    coefficients = _systematic_coefficients(
+        config.data_symbols,
+        config.block_symbols,
+    )
+    return tuple(_sum_gf_products(row, source_values) for row in coefficients)
+
+
+def _sum_gf_products(
+    coefficients: tuple[int, ...],
+    values: tuple[int, ...],
+) -> int:
+    result = 0
+    for coefficient, value in zip(coefficients, values):
+        result ^= _GF256.multiply(coefficient, value)
+    return result
+
+
 def _recover_polynomial(
     received: tuple[FecSymbol, ...],
     config: FecConfig,
@@ -341,6 +413,10 @@ def _recover_polynomial(
         return None
 
     points = _evaluation_points(config.block_symbols)
+    powers_by_index = _evaluation_powers(
+        config.block_symbols,
+        config.data_symbols + max_errors,
+    )
     ordered_received = tuple(sorted(received, key=lambda symbol: symbol.index))
 
     for error_count in range(max_errors, -1, -1):
@@ -350,13 +426,10 @@ def _recover_polynomial(
         right_hand_side: list[int] = []
 
         for symbol in ordered_received:
-            point = points[symbol.index]
             value = symbol.data[0]
-            powers = [1]
-            for _ in range(max(q_degree_limit, error_count + 1)):
-                powers.append(_GF256.multiply(powers[-1], point))
+            powers = powers_by_index[symbol.index]
 
-            row = powers[:q_degree_limit]
+            row = list(powers[:q_degree_limit])
             row.extend(
                 _GF256.multiply(value, powers[index])
                 for index in range(locator_unknowns)
@@ -398,25 +471,147 @@ def _recover_polynomial(
     return None
 
 
+def _fast_decode(
+    received: tuple[FecSymbol, ...],
+    config: FecConfig,
+    metadata: FecBlockMetadata,
+    missing_indices: tuple[int, ...],
+) -> DecodeResult | None:
+    """Handle common erasure-only cases without solving a full system.
+
+    The general decoder remains the authority for unknown errors.  When exactly
+    ``k`` symbols are available, interpolation is the same zero-error
+    Berlekamp-Welch solution.  When the complete codeword is available, a
+    polynomial reconstructed from any ``k`` symbols is first verified against
+    every received symbol before using the fast result.
+    """
+
+    received_by_index = {
+        symbol.index: symbol.data[0] for symbol in received
+    }
+    source_indices = set(range(config.data_symbols))
+    if (
+        len(received) == config.data_symbols
+        and source_indices.issubset(received_by_index)
+    ):
+        source_values = tuple(
+            received_by_index[index] for index in range(config.data_symbols)
+        )
+        codeword = _codeword_values(source_values, config)
+        return DecodeResult(
+            source_block=bytes(source_values)[: metadata.original_length],
+            recovered_symbols=tuple(
+                FecSymbol(
+                    index=index,
+                    data=bytes((codeword[index],)),
+                )
+                for index in sorted(missing_indices)
+            ),
+            success=True,
+            reason=None,
+            missing_indices=missing_indices,
+        )
+
+    if len(received) >= config.data_symbols and missing_indices:
+        points = _evaluation_points(config.block_symbols)
+        ordered = tuple(sorted(received, key=lambda symbol: symbol.index))
+        basis = ordered[: config.data_symbols]
+        polynomial = _interpolate(
+            tuple(points[symbol.index] for symbol in basis),
+            tuple(symbol.data[0] for symbol in basis),
+        )
+        if all(
+            _polynomial_evaluate(polynomial, points[symbol.index])
+            == symbol.data[0]
+            for symbol in ordered
+        ):
+            recovered_symbols = tuple(
+                FecSymbol(
+                    index=index,
+                    data=bytes(
+                        (_polynomial_evaluate(polynomial, points[index]),)
+                    ),
+                )
+                for index in sorted(missing_indices)
+            )
+            padded_source = bytes(
+                _polynomial_evaluate(polynomial, points[index])
+                for index in range(config.data_symbols)
+            )
+            return DecodeResult(
+                source_block=padded_source[: metadata.original_length],
+                recovered_symbols=recovered_symbols,
+                success=True,
+                reason=None,
+                missing_indices=missing_indices,
+            )
+
+    if len(received) == config.data_symbols:
+        points = _evaluation_points(config.block_symbols)
+        ordered = tuple(sorted(received, key=lambda symbol: symbol.index))
+        polynomial = _interpolate(
+            tuple(points[symbol.index] for symbol in ordered),
+            tuple(symbol.data[0] for symbol in ordered),
+        )
+        padded_source = bytes(
+            _polynomial_evaluate(polynomial, points[index])
+            for index in range(config.data_symbols)
+        )
+        recovered_symbols = tuple(
+            FecSymbol(
+                index=index,
+                data=bytes(
+                    (_polynomial_evaluate(polynomial, points[index]),)
+                ),
+            )
+            for index in sorted(missing_indices)
+        )
+        return DecodeResult(
+            source_block=padded_source[: metadata.original_length],
+            recovered_symbols=recovered_symbols,
+            success=True,
+            reason=None,
+            missing_indices=missing_indices,
+        )
+
+    if not missing_indices and len(received) == config.block_symbols:
+        ordered = tuple(sorted(received, key=lambda symbol: symbol.index))
+        source_values = tuple(
+            symbol.data[0]
+            for symbol in ordered
+            if symbol.index < config.data_symbols
+        )
+        expected = (
+            _codeword_values(source_values, config)
+            if len(source_values) == config.data_symbols
+            else ()
+        )
+        if expected and all(
+            expected[symbol.index] == symbol.data[0]
+            for symbol in ordered
+        ):
+            return DecodeResult(
+                source_block=bytes(source_values)[: metadata.original_length],
+                recovered_symbols=(),
+                success=True,
+                reason=None,
+            )
+
+    return None
+
+
 class ReedSolomonEncoder:
     """Encode one source block with systematic Reed-Solomon symbols."""
 
     def encode(self, source_block: bytes, config: FecConfig) -> EncodedBlock:
         _validate_rs_config(config)
         source_symbols, metadata = prepare_source_symbols(source_block, config)
-        points = _evaluation_points(config.block_symbols)
-        source_points = points[: config.data_symbols]
         source_values = tuple(symbol.data[0] for symbol in source_symbols)
-        polynomial = _interpolate(source_points, source_values)
-
+        codeword = _codeword_values(source_values, config)
         repair_symbols = tuple(
             FecSymbol(
                 index=index,
-                data=bytes(
-                    (
-                        _polynomial_evaluate(polynomial, points[index]),
-                    )
-                ),
+                data=bytes((codeword[index],)),
             )
             for index in range(config.data_symbols, config.block_symbols)
         )
@@ -454,6 +649,15 @@ class ReedSolomonDecoder:
                 reason=DecodeFailureReason.INSUFFICIENT_SYMBOLS,
                 missing_indices=missing_indices,
             )
+
+        fast_result = _fast_decode(
+            received,
+            config,
+            metadata,
+            missing_indices,
+        )
+        if fast_result is not None:
+            return fast_result
 
         recovered = _recover_polynomial(
             received,

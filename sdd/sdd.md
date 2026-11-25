@@ -5,7 +5,7 @@
 - **Abordagem:** Specification-Driven Development (SDD)
 - **Objetivo:** Desenvolver um protocolo eficiente para transmissão de imagens e, futuramente, áudio através de redes MeshCore/LoRa.
 - **Nome do protocolo:** MM1 (MeshMedia v1)
-- **Revisão do SDD:** 0.7.0-draft
+- **Revisão do SDD:** 0.8.0-draft
 - **Versão da implementação de referência:** 0.1.0
 - **Versão do protocolo binário:** 1
 - **Conformidade:** Parcial
@@ -1879,6 +1879,38 @@ substituir o material criptográfico do MeshCore.
   limitação e apresentar alternativas antes de alterar firmware.
 - Tiling acima de 128 x 128 e refinamento progressivo continuam fora do escopo
   inicial desta aplicação.
+
+# 30. Issue #24 — comparacao CRC-only, CRC+RS e RS-only
+
+Esta etapa especifica um executor reproduzivel de laboratorio para comparar:
+
+- CRC-only no caminho legado;
+- CRC+Reed-Solomon na extensao FEC opt-in existente;
+- RS-only em harness isolado, sem `Packet` MM1 e sem CRC.
+
+O RS-only nao altera o formato MM1 v1 e nao e uma alternativa recomendada para
+transmissao real. O ambiente de execucao e memoria/simulacao local; nenhum
+resultado desta etapa representa airtime, alcance, perda ou latencia de radio.
+
+O perfil controlado inicial usa grayscale packed com 16 niveis, payload de 64
+bytes, modo legado, simbolos RS de um byte, sem interleaving, `ZERO_PAD` e
+`PAD_TO_K`. As configuracoes RS sao RS(32,28), RS(32,24) e RS(32,20).
+
+O executor deve gerar tres fixtures deterministicas (`TEST-01`, `TEST-02` e
+`TEST-03`) em `32x32`, `64x64` e `128x128`, aplicar seeds fixas e registrar
+resultados por execucao. Cada celula deve preservar bytes codificados, reparos,
+headers, CRC, bytes totais, mensagens, simbolos, blocos, reconstrucao,
+igualdade byte a byte, diferencas de pixels, PSNR e tempos locais.
+
+Cada fragmento MM1 e uma mensagem. No RS-only, cada frame FEC e uma unidade
+experimental identificada separadamente. O resultado deve distinguir mensagens
+enviadas, entregues, validadas, rejeitadas pelo CRC e suficientes para a
+primeira conclusao valida.
+
+O conjunto completo possui 9.450 execucoes: tres fixtures, tres resolucoes,
+uma configuracao CRC-only, tres CRC+RS, tres RS-only, quinze cenarios de
+falha e dez repeticoes. Filtros para smoke tests e retomada sao permitidos,
+mas nao reduzem silenciosamente a matriz.
 
 ## 29.6 Critério de conclusão do objetivo
 

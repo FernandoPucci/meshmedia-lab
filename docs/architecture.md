@@ -38,6 +38,8 @@ codec.
 | Modelo/parser do descritor | `src/meshmedia_lab/protocol/descriptor.py` |
 | Matriz de experimentos | `docs/experiment-matrix.md` |
 | Experimento RGB332 | `benchmarks/rgb332_experiment.py` |
+| Executor Issue #24 | `benchmarks/issue24/` e `benchmarks/issue24_experiment.py` |
+| Artefatos Issue #24 | `experiments/issue-24/` |
 
 ## Limites
 
@@ -227,6 +229,27 @@ borda. MeshCore continua
 sendo um transporte planejado, nao uma capacidade implementada.
 Os limites e formatos do transporte MeshCore usados como referencia estao em
 [`meshcore-reference.md`](meshcore-reference.md).
+
+## Harness de comparacao da Issue #24
+
+O executor da Issue #24 permanece fora do pacote de protocolo e coordena os
+componentes existentes em tres caminhos:
+
+```text
+fixture grayscale
+    -> encoder
+    -> CRC-only: Fragmenter -> Packet -> Reassembler
+    -> CRC+RS: FecTransmission -> FecPacketizer -> FecReassembler
+    -> RS-only: FecTransmission -> FecSymbolFrame experimental -> RS decoder
+```
+
+O simulador de falhas do harness fornece uma sequencia deterministica de
+eventos, registra perdas/corrupcoes e aplica corrupcao no payload ou no simbolo.
+Ele nao modifica o formato MM1. O RS-only nao passa pelo `Packet` e nao deve ser
+interpretado como uma extensao wire do protocolo.
+
+O executor tambem gera as imagens de referencia e resultado, resultados brutos,
+resumos, graficos e um visualizador local com dois paineis de mesma escala.
 
 
 ## Aplicação web local — arquitetura-alvo

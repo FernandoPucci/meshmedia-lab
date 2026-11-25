@@ -186,6 +186,8 @@ Documentacao complementar:
   locais e artefatos visuais do experimento RGB332.
 - [`docs/meshcore-reference.md`](docs/meshcore-reference.md): formato MeshCore, limites de pacote e encaixe do MM1.
 - [`docs/error-control.md`](docs/error-control.md): CRC, FEC, Reed-Solomon e plano de afericao.
+- [`experiments/issue-24/README.md`](experiments/issue-24/README.md):
+  executor e artefatos da comparacao CRC/FEC da Issue #24.
 - [`docs/references.md`](docs/references.md): referencias academicas, normativas e tecnicas.
 - [`CHANGELOG.md`](CHANGELOG.md): historico de software, protocolo e especificacao.
 

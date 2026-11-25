@@ -6,6 +6,23 @@ do software ou do protocolo.
 
 ## [Unreleased]
 
+### Issue #24 — harness experimental CRC/FEC
+
+- Especificado o executor reproduzivel para comparar CRC-only, CRC+RS e RS-only.
+- Registrado o ADR 0006, mantendo o RS-only isolado e sem alterar o wire format
+  MM1 v1, o cabecalho ou o CRC.
+- Definidas fixtures deterministicas, seeds, matriz de 9.450 execucoes e
+  metricas de mensagens enviadas, recebidas e necessarias para conclusao.
+- Implementado o harness local com resultados JSON/JSONL/CSV, graficos SVG,
+  comparacao visual e uso da fixture existente `test-images/cat.jpeg`.
+- Adicionado viewer local com fallback HTTP padrão quando `tkinter` não está
+  disponível, incluindo execução de células selecionadas e escala pixelada.
+- Otimizadas operações equivalentes de GF(256) no Reed-Solomon sem alterar
+  vetores, limites ou semântica do decoder.
+- Executada a matriz completa com 9.450 células; o relatório final registra
+  taxa agregada de reconstrução integral de 42,53% na simulação local e
+  separa resultados de CRC-only, CRC+RS e RS-only.
+
 ### FEC no pipeline TX/RX — Issues #21 e #22
 
 - Adicionada a preparacao de transmissoes FEC em blocos, usando exclusivamente
