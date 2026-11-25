@@ -10,7 +10,7 @@ mas esta matriz e a referencia para distinguir proposta, plano e implementacao.
 |---|---|
 | Versao do software | `0.1.0` |
 | Versao do protocolo binario | `1` |
-| Revisao do SDD | `0.8.0-draft` |
+| Revisao do SDD | `0.9.1-draft` |
 | Conformidade | Parcial |
 | Ultima revisao | 2026-11-25 |
 
@@ -69,7 +69,7 @@ que a capacidade existe.
 | Harness RS-only | Issue #24 | Isolado, sem MM1 v1 | Implementado | `benchmarks/issue24/strategies.py`, sem `Packet` ou CRC |
 | Metricas de mensagens e conclusao | Issue #24 | Especificado | Implementado | `benchmarks/issue24/runner.py`, JSON/CSV e testes |
 | Comparacao visual Issue #24 | Issue #24 | Especificado | Implementado | `benchmarks/issue24/viewer.py`, viewer local com nearest-neighbor |
-| WebApp browser-only TX/RX | SDD seção 29 / Issue #39 | Planejado | Não implementado | GitHub Pages + Web Bluetooth; execução do codec Python existente no browser (PoC Pyodide pendente); sem backend local |
+| WebApp browser-only TX/RX | SDD seção 29 / Issue #39 | PoC BLE/texto definida | Parcial | `web/` com página estática, detecção Web Bluetooth, conexão Companion, canais e mensagens de texto; sem hardware validado, codec browser, MM1 ou transporte binário |
 
 ## Comportamento atual
 
@@ -233,7 +233,40 @@ codec pode ser alterado para atender à WebApp. Se a execução browser-only nã
 for viável sem modificar o codec, a implementação deve parar para decisão
 humana. Adaptadores e wrappers novos ficam fora da camada de codec.
 
-A biblioteca meshcore.js é candidata para conexão BLE e operações do
-Companion; API, licença e suporte ao envio/recepção binária de grupo ainda
-precisam ser validados. Chrome/Edge desktop são o alvo inicial; Linux deve ser
-testado cedo. Não há integração MeshCore real comprovada nesta revisão.
+A biblioteca `@liamcottle/meshcore.js` `1.15.1` foi avaliada quanto à licença e
+à API de conexão/texto e está fixada na PoC. O suporte a envio/recepção binária
+de grupo e o comportamento com o firmware/hardware identificado ainda precisam
+ser validados. Chrome/Edge desktop são o alvo inicial; Linux deve ser testado
+cedo. Não há integração MeshCore real comprovada nesta revisão.
+
+## Verificação da PoC browser-only BLE/texto (2026-11-25)
+
+A primeira entrega incremental foi implementada em `web/`, sem alterar o codec,
+o protocolo MM1 ou os transportes Python. A página estática:
+
+- verifica contexto seguro e `navigator.bluetooth`;
+- conecta ao Companion pela `WebBleConnection` da biblioteca
+  `@liamcottle/meshcore.js` `1.15.1`;
+- lista canais sem persistir ou exibir segredos;
+- envia mensagens de texto comuns e lê mensagens pendentes do canal;
+- trata cancelamento, erro, desconexão e reconexão na interface;
+- pode ser publicada pelo workflow `.github/workflows/deploy-webapp.yml`.
+
+Verificações executadas:
+
+```bash
+cd web
+npm test
+node --check src/app.js
+node --check src/meshcore-adapter.js
+node --check src/support.js
+```
+
+Resultado: 4 testes JavaScript passaram e os três módulos passaram na checagem
+de sintaxe. Um smoke test em Chrome headless carregou a página em `localhost`
+e confirmou o carregamento do módulo ESM externo, mas o modo headless não
+oferece Web Bluetooth.
+
+Ainda não há evidência de conexão BLE, seleção de canal ou entrega por rádio
+com duas placas MeshCore reais. A PoC não valida codec, Pyodide, MM1, FEC,
+`GRP_DATA` ou transmissão binária.

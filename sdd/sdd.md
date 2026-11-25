@@ -5,7 +5,7 @@
 - **Abordagem:** Specification-Driven Development (SDD)
 - **Objetivo:** Desenvolver um protocolo eficiente para transmissão de imagens e, futuramente, áudio através de redes MeshCore/LoRa.
 - **Nome do protocolo:** MM1 (MeshMedia v1)
-- **Revisão do SDD:** 0.9.0-draft
+- **Revisão do SDD:** 0.9.1-draft
 - **Versão da implementação de referência:** 0.1.0
 - **Versão do protocolo binário:** 1
 - **Conformidade:** Parcial
@@ -1756,19 +1756,21 @@ Após validação, o protocolo poderá ser adaptado para MeshCore, incluindo eve
 
 ---
 
-# 29. Aplicação web local TX/RX — arquitetura-alvo
+# 29. Aplicação web browser-only TX/RX — arquitetura-alvo
 
-**Status:** PLANEJADO; objetivo arquitetural de longo prazo, não implementado.
+**Status:** objetivo arquitetural com execução incremental; a primeira PoC
+BLE/texto é uma entrega separada da futura transmissão de imagens MM1.
 **Rastreabilidade:** [Issue #39 — Aplicação web local para transmissão e recepção de imagens MM1 via MeshCore](https://github.com/FernandoPucci/meshmedia-lab/issues/39).
 
-O objetivo de produto do MeshMedia Lab é oferecer uma aplicação web servida
-localmente em cada estação, permitindo preparar, transmitir, receber e
-visualizar imagens MM1 sem modificar inicialmente o firmware MeshCore da
-Heltec V3 nem o aplicativo oficial.
+O objetivo de produto do MeshMedia Lab é oferecer uma aplicação web estática,
+publicada em HTTPS, permitindo preparar, transmitir, receber e visualizar
+imagens MM1 sem modificar inicialmente o firmware MeshCore da Heltec V3 nem o
+aplicativo oficial.
 
-Duas estações independentes participam do fluxo. Cada uma executa sua própria
-instância local da aplicação e conecta uma Heltec V3 por uma porta serial. Uma
-instância pode atuar como transmissor (TX) e a outra como receptor (RX).
+Duas estações independentes participam do fluxo. Cada uma abre a mesma URL em
+seu próprio navegador e conecta uma Heltec V3 por Bluetooth Low Energy usando o
+firmware MeshCore Companion. Uma instância pode atuar como transmissor (TX) e a
+outra como receptor (RX).
 
 ## 29.1 Estação transmissora
 
@@ -1941,13 +1943,15 @@ substituir o material criptográfico do MeshCore.
 
 - A primeira entrega técnica deve ser uma prova de conceito mínima da WebApp
   estática em HTTPS: detectar Web Bluetooth, solicitar seleção do Companion,
-  conectar, ler informações básicas e demonstrar envio/recepção de uma
-  mensagem de teste compatível com o firmware. Não começar pela interface
+  conectar, ler informações básicas, selecionar um canal e demonstrar
+  envio/recepção de uma mensagem de texto comum compatível com o firmware. Essa
+  mensagem valida somente a comunicação do Companion; não transporta bytes MM1
+  nem substitui a validação do transporte binário. Não começar pela interface
   completa de imagens.
-- A prova de conceito deve validar também a execução do codec Python existente
-  no navegador via Pyodide/WebAssembly, sem modificar seus arquivos, APIs ou
-  testes. Se necessário, validar a execução do pacote/protocolo MM1 existente
-  no mesmo runtime.
+- Em uma etapa posterior, a execução do codec Python existente no navegador
+  via Pyodide/WebAssembly deve ser comprovada sem modificar seus arquivos, APIs
+  ou testes. Se necessário, validar a execução do pacote/protocolo MM1 existente
+  no mesmo runtime. Essa etapa não bloqueia o aceite inicial de BLE e texto.
 - A escolha de meshcore.js, Pyodide e bundler deverá ser confirmada por
   protótipo, documentação upstream, compatibilidade, licença e tamanho/carga
   inicial. Não assumir que uma biblioteca oferece operações que ainda não
@@ -2001,11 +2005,25 @@ uma configuracao CRC-only, tres CRC+RS, tres RS-only, quinze cenarios de
 falha e dez repeticoes. Filtros para smoke tests e retomada sao permitidos,
 mas nao reduzem silenciosamente a matriz.
 
-## 29.6 Critério de conclusão do objetivo
+## 29.6 Critérios de conclusão
 
-O objetivo será demonstrado quando duas instâncias locais independentes,
-conectadas por serial a duas Heltec V3 com firmware MeshCore original, puderem
-transmitir uma imagem MM1 por um canal privado e a estação RX reconstruir e
-exibir a imagem na interface web. O ensaio deverá registrar configuração,
-quantidade de mensagens, bytes, tempos, falhas e limitações observadas,
-separando claramente medições de rádio real de estimativas e testes locais.
+### 29.6.1 PoC inicial de BLE e texto
+
+O primeiro aceite será demonstrado quando uma WebApp estática publicada em
+HTTPS, sem instalação ou servidor na máquina do usuário, puder detectar o
+suporte do navegador, conectar por BLE ao MeshCore Companion, selecionar/usar
+um canal e enviar uma mensagem de texto comum que seja recebida por uma segunda
+estação MeshCore no mesmo canal. O teste deve registrar navegador, sistema
+operacional, firmware, placa, biblioteca e resultado. Nenhum resultado desta
+PoC deve ser apresentado como validação do codec, do MM1, do FEC ou do
+transporte binário.
+
+### 29.6.2 Objetivo completo de imagens
+
+O objetivo completo será demonstrado quando duas instâncias independentes,
+publicadas pela mesma WebApp e conectadas por BLE a duas Heltec V3 com firmware
+MeshCore Companion original, puderem transmitir uma imagem MM1 por um canal
+privado e a estação RX reconstruir e exibir a imagem na interface web. O ensaio
+deverá registrar configuração, quantidade de mensagens, bytes, tempos, falhas e
+limitações observadas, separando claramente medições de rádio real de
+estimativas e testes locais.
