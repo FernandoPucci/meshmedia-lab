@@ -22,7 +22,7 @@ Matriz completa:
 PYTHONPATH=src:. python3 -m benchmarks.issue24_experiment \
   --output-dir experiments/issue-24 \
   --repetitions 10 \
-  --workers 1
+  --workers 4
 ```
 
 `--workers N` permite executar células independentes em paralelo. Seeds,
@@ -39,6 +39,23 @@ PYTHONPATH=src:. python3 -m benchmarks.issue24_experiment \
   --resume
 ```
 
+Execução direcionada para análise de uma célula:
+
+```bash
+PYTHONPATH=src:. python3 -m benchmarks.issue24_experiment \
+  --output-dir experiments/issue-24 \
+  --fixture TEST-03 \
+  --resolution 64x64 \
+  --strategy crc+rs \
+  --scenario MIX-01 \
+  --repetitions 10 \
+  --workers 4 \
+  --resume
+```
+
+`--strategy crc+rs` executa as três configurações RS. Os filtros disponíveis
+são `crc-only`, `crc+rs` e `rs-only`.
+
 Viewer local:
 
 ```bash
@@ -50,6 +67,61 @@ O viewer usa nearest-neighbor nos dois painéis. Quando `tkinter` não está
 disponível, ele inicia automaticamente um viewer HTTP local com a biblioteca
 padrão Python. Quando não há reconstrução válida, o painel recebido exibe o
 estado da falha e não cria uma imagem preenchida artificialmente.
+
+## Onde acessar os resultados
+
+Após a execução, os principais artefatos são:
+
+```text
+experiments/issue-24/reports/final-analysis.md  # análise e recomendação final
+experiments/issue-24/reports/comparison.md      # tabelas e links dos gráficos
+experiments/issue-24/reports/charts/            # gráficos SVG
+experiments/issue-24/results/summary/summary.json
+experiments/issue-24/results/summary/results.csv
+experiments/issue-24/results/raw/results.jsonl  # todos os resultados
+experiments/issue-24/reference/                 # imagens originais
+experiments/issue-24/results/images/            # imagens reconstruídas
+```
+
+Cada JSON individual possui a mesma identificação no nome do arquivo e registra
+seed, repetição, estratégia, configuração RS, cenário, contagem de mensagens,
+overhead, recuperação, PSNR e estado da reconstrução.
+
+Para abrir a análise no terminal:
+
+```bash
+less experiments/issue-24/reports/final-analysis.md
+```
+
+Para comparar uma imagem recebida, procure o JSON com o mesmo prefixo do PNG e
+verifique principalmente:
+
+- `reconstruction_integral`;
+- `pixels_different`;
+- `psnr_db`;
+- `messages_sent`;
+- `messages_used_to_conclude`;
+- `packets_lost`;
+- `messages_crc_rejected`;
+- `symbols_recovered`.
+
+## Escolha baseada nos resultados
+
+Não existe uma configuração vencedora para todos os objetivos:
+
+| Opção | Resultado observado | Interpretação |
+|---|---|---|
+| CRC-only | Menor overhead: **32,81%**; recuperação degradada média: **22,30%** | Melhor quando o canal é confiável e o custo de transmissão é prioridade |
+| CRC+RS(32,20) | Maior recuperação degradada média: **75,56%**; overhead sem falhas: **10.861,46%** | Melhor escolha experimental quando a prioridade é recuperação |
+| RS-only | Recuperação degradada média: **45,24%**; 126 saídas divergentes | Não recomendado para transmissão real; não valida integridade |
+
+**Recomendação:** para o objetivo desta Issue — maximizar a recuperação — a
+melhor escolha experimental é **CRC+RS(32,20)**. Para uma transmissão real,
+essa escolha ainda não deve ser considerada um preset de produção: o packetizer
+atual envia um símbolo FEC por mensagem, gerando overhead muito elevado.
+
+Se a prioridade for reduzir bytes e mensagens, use **CRC-only** como baseline.
+O RS-only deve permanecer restrito ao laboratório.
 
 ## Artefatos
 
