@@ -27,7 +27,7 @@ O projeto usa tres identificadores independentes:
 |---|---|
 | Versao do software | Evolucao do pacote Python e de sua API. Atualmente `0.1.0`. |
 | Versao do protocolo | Compatibilidade do formato binario transportado. Atualmente `1`. |
-| Revisao do SDD | Evolucao dos requisitos, decisoes e propostas. Atualmente `0.7.0-draft`. |
+| Revisao do SDD | Evolucao dos requisitos, decisoes e propostas. Atualmente `0.9.0-draft`. |
 
 Uma alteracao editorial nao altera a versao do software nem a versao do
 protocolo. Uma alteracao incompativel no formato ou no significado dos pacotes
@@ -1774,7 +1774,7 @@ instância pode atuar como transmissor (TX) e a outra como receptor (RX).
 
 A interface TX deverá permitir:
 
-1. Conectar/selecionar a porta serial da Heltec V3.
+1. Solicitar a conexão BLE e selecionar o MeshCore Companion da Heltec V3.
 2. Carregar uma imagem local e apresentar uma pré-visualização.
 3. Selecionar dimensões de saída, inicialmente dentro do limite vigente de
    128 x 128 pixels (por exemplo, 32 x 32 ou 64 x 64).
@@ -1799,7 +1799,7 @@ transporte MeshCore.
 
 A interface RX deverá permitir:
 
-1. Conectar/selecionar a porta serial da Heltec V3 receptora.
+1. Solicitar a conexão BLE e selecionar o MeshCore Companion da Heltec V3 receptora.
 2. Monitorar mensagens recebidas no canal privado configurado.
 3. Identificar pacotes MM1 e validar integridade antes da reassemblagem.
 4. Reassemblar fragmentos e decodificar a imagem usando os metadados recebidos,
