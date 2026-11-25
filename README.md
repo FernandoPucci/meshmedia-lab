@@ -159,9 +159,11 @@ O descritor inline opcional v1 usa flag `0x04`, marcador `TD` e prefixo de 19
 bytes somente no primeiro payload. Exige RX atualizado; nao ha negociacao
 automatica. Cabeçalho MM1 de 19 bytes e CRC permanecem inalterados.
 
-Ainda nao estao implementados FEC, Reed-Solomon, ACK/NACK, retransmissao
-seletiva, transmissao progressiva ou um adaptador MeshCore. Essas tecnicas
-aparecem no SDD como propostas e experimentos, nao como capacidades existentes.
+O contrato abstrato de FEC foi materializado para testes independentes, mas
+ainda nao estao implementados FEC funcional, Reed-Solomon, ACK/NACK,
+retransmissao seletiva, transmissao progressiva ou um adaptador MeshCore.
+Essas tecnicas aparecem no SDD como propostas e experimentos, nao como
+capacidades de transporte existentes.
 
 O `1` de MM1 identifica a primeira versao do protocolo no cabecalho. Ele nao e a
 versao do pacote Python: a implementacao de referencia atualmente e `0.1.0`.
@@ -202,6 +204,7 @@ reconstruida sem alterar o nucleo do codec.
 ├── src/meshmedia_lab/
 │   ├── application/         # Casos de uso e pipeline
 │   ├── codec/               # Encoder e decoder de imagem
+│   ├── fec/                 # Contrato abstrato de controle de erros
 │   ├── protocol/            # Pacotes, CRC, fragmentacao e reassemblagem
 │   ├── simulation/          # Simulacao de canal
 │   └── transport/           # Adaptadores, transmissor e receptor

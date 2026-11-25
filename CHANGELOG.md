@@ -69,6 +69,10 @@ do software ou do protocolo.
 
 ### Implementacao
 
+- Implementado o contrato abstrato de FEC da Issue #19 em
+  `src/meshmedia_lab/fec/`, com configuracao imutavel, simbolos, blocos,
+  resultados, protocolos separados e validacoes cobertas por fake; nenhum
+  algoritmo FEC ou integracao MM1 foi adicionada.
 - Implementados modelo/parser puro do descritor, fragmentacao opt-in,
   reassemblagem fora de ordem limitada, validacao estrita e rejeicao terminal
   de descritores inconsistentes, com integracao aos dois codecs, pipeline e

@@ -12,7 +12,7 @@ mas esta matriz e a referencia para distinguir proposta, plano e implementacao.
 | Versao do protocolo binario | `1` |
 | Revisao do SDD | `0.5.0-draft` |
 | Conformidade | Parcial |
-| Ultima revisao | 2026-11-24 |
+| Ultima revisao | 2026-11-25 |
 
 As versoes do software estao declaradas em `pyproject.toml` e
 `src/meshmedia_lab/__init__.py`. A versao do protocolo e declarada por
@@ -46,10 +46,10 @@ que a capacidade existe.
 | Transporte UDP local | Secoes 13 e 20 | Baseline de laboratorio | Implementado | `src/meshmedia_lab/transport/udp.py`, testes de integracao |
 | Simulacao de perda independente | Secao 11 | Parcial | Implementado | `src/meshmedia_lab/simulation/channel.py` |
 | Perda em rajadas, latencia e jitter | Secao 11 | Planejado | Nao implementado | Sem suporte no simulador atual |
-| FEC | Secao 9.3 | Proposto | Nao implementado | Sem modulo FEC |
+| FEC funcional | Secao 9.3 | Proposto | Nao implementado | Existe somente o contrato abstrato; sem algoritmo ou integracao |
 | Reed-Solomon | Secao 10 e Fase 5 | Proposto | Nao implementado | Sem encoder ou decoder RS |
 | Parametrizacao RS experimental | Secao 10 e Fase 5 | Proposto | Nao implementado | Matriz documentada, sem experimento executavel |
-| Interface abstrata FEC | Etapa A / `docs/error-control.md` | Proposto | Nao implementado | Contrato documental, sem classes ou modulo |
+| Interface abstrata FEC | Issue #19 / `docs/error-control.md` | Contrato implementado | Implementado | `src/meshmedia_lab/fec/contract.py`, `tests/unit/test_fec.py` |
 | ACK, NACK e retransmissao | Secao 9.2 e Fase 6 | Planejado | Nao implementado | Sem mensagens de controle |
 | Transmissao progressiva | Secao 5 e Fase 8 | Planejado | Nao implementado | Codec atual gera uma representacao unica |
 | Integracao MeshCore | Secao 17 e Fase 9 | Planejado | Nao implementado | Sem adaptador; limites em `docs/meshcore-reference.md` |
@@ -81,8 +81,9 @@ O MVP local atualmente funciona desta forma:
    fora de `1..64`. As dimensoes continuam independentes em ambos os codecs.
 
 Consequentemente, uma perda ou uma corrupcao detectada pelo CRC torna a
-transmissao incompleta no MVP. FEC e retransmissao sao alternativas futuras,
-nao comportamentos disponiveis atualmente.
+transmissao incompleta no MVP. O contrato abstrato FEC agora existe para
+validar futuras implementacoes, mas FEC funcional e retransmissao continuam
+indisponiveis.
 
 O modo legado continua default. O modo `descriptor` usa flag `0x04` em todos os
 pacotes e prefixo `TD | 16 | corpo v1` no fragmento zero. O modelo/parser valida

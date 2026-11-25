@@ -19,7 +19,7 @@ os valores efetivamente usados em cada transmissao e experimento.
 | Limite de 128 x 128 | Implementado no grayscale; nao inclui tiling |
 | Descritor inline no primeiro fragmento | Implementado localmente como extensao opt-in v1; ADR 0004 |
 | RGB332 | Implementado no codec e no envelope MM1 v1 |
-| FEC parametrizavel | Proposto; nao implementado |
+| Contrato FEC parametrizavel | Implementado sem algoritmo concreto ou integracao |
 | Perfis nomeados ou presets | Futuro; fora desta etapa |
 
 O protocolo continua sendo MM1 v1. O descritor nao cria uma v2 e nao altera o
@@ -46,7 +46,7 @@ efetivos sao os definidos pelo cabecalho existente em
 | `total_fragments` | `uint16` | Pelo menos 1 | Implementado no v1 |
 | `payload_limit` | `uint8` no v1 | `1..255` local; limite externo pode ser menor | Implementado |
 | `compression_id` | `uint8` no descritor | Apenas `0=NONE`; outros rejeitados | Implementado NONE |
-| `fec_config` | estrutura explicita | Sem FEC no baseline | Proposto |
+| `fec_config` | estrutura explicita | Sem FEC no baseline | Contrato abstrato implementado; integracao proposta |
 
 `width` e `height` nao formam uma proporcao obrigatoria. Imagens retangulares
 sao validas. A area maxima inicial e, portanto, `128 x 128`; nao ha tiling nem

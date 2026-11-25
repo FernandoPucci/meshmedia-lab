@@ -45,6 +45,7 @@ as metricas definidas em [`docs/error-control.md`](../error-control.md).
 
 ## Consequencias atuais
 
-Nao existe modulo FEC, campo `FEC_PRESENT`, encoder RS ou decoder RS no codigo.
-Qualquer diagrama que mostre Reed-Solomon deve ser marcado como arquitetura
-futura ou experimento.
+Existe um modulo de contrato abstrato FEC em
+`src/meshmedia_lab/fec/`, mas nao existe campo `FEC_PRESENT`, encoder RS ou
+decoder RS no codigo. Qualquer diagrama que mostre Reed-Solomon deve ser
+marcado como arquitetura futura ou experimento.
