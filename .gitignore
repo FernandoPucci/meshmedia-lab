@@ -18,6 +18,3 @@ dist/
 artifacts/
 experiments/issue-24/reference/
 experiments/issue-24/results/
-experiments/issue-24/reports/*
-!experiments/issue-24/reports/
-!experiments/issue-24/reports/final-analysis.md
