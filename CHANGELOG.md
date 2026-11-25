@@ -12,6 +12,17 @@ do software ou do protocolo.
 - Registrada como regra explícita a reutilização do codec Python existente sem reescrita ou alteração; Pyodide/WebAssembly permanece hipótese a validar em prova de conceito.
 - Definida a sequência incremental de validação BLE, runtime do codec e integração MM1, sem declarar a integração MeshCore implementada.
 
+### WebApp browser-only — PoC BLE/texto
+
+- Adicionada a página estática em `web/`, isolada dos módulos Python, com
+  detecção de contexto seguro/Web Bluetooth, conexão ao Companion, listagem de
+  canais e envio/recepção de mensagens de texto.
+- Fixada a avaliação inicial de `@liamcottle/meshcore.js` na versão `1.15.1`,
+  sem usar o envio de texto para transportar bytes MM1.
+- Adicionado workflow de publicação do diretório `web/` no GitHub Pages.
+- A entrega permanece parcial: não há validação BLE com hardware real, codec
+  browser, transporte binário, MM1, FEC ou transmissão de imagens.
+
 ### Issue #24 — harness experimental CRC/FEC
 
 - Especificado o executor reproduzivel para comparar CRC-only, CRC+RS e RS-only.

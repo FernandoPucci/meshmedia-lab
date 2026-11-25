@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="PoC browser-only do MeshMedia Lab para MeshCore Companion">
+    <title>MeshMedia Lab — PoC BLE</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <p class="eyebrow">MeshMedia Lab</p>
+        <h1>Companion Bluetooth</h1>
+        <p class="intro">
+          Prova de conceito browser-only para conectar ao MeshCore Companion e
+          trocar mensagens de texto em um canal.
+        </p>
+      </header>
+
+      <section class="card" aria-labelledby="support-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">1. Ambiente</p>
+            <h2 id="support-heading">Suporte do navegador</h2>
+          </div>
+          <span id="support-badge" class="badge badge-neutral">Verificando</span>
+        </div>
+        <p id="support-status" class="status-text" role="status" aria-live="polite">
+          Verificando contexto seguro e Web Bluetooth…
+        </p>
+        <p class="hint">
+          O acesso Bluetooth somente é solicitado depois de uma ação explícita
+          neste botão. Use Chrome ou Edge desktop em HTTPS.
+        </p>
+      </section>
+
+      <section class="card" aria-labelledby="connection-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">2. Conexão</p>
+            <h2 id="connection-heading">MeshCore Companion</h2>
+          </div>
+          <span id="connection-badge" class="badge badge-neutral">Desconectado</span>
+        </div>
+
+        <div class="button-row">
+          <button id="connect-button" class="button button-primary" type="button">
+            Conectar por Bluetooth
+          </button>
+          <button id="disconnect-button" class="button button-secondary" type="button" disabled>
+            Desconectar
+          </button>
+        </div>
+
+        <dl class="facts">
+          <div>
+            <dt>Dispositivo</dt>
+            <dd id="device-name">Nenhum dispositivo conectado</dd>
+          </div>
+          <div>
+            <dt>Estado</dt>
+            <dd id="connection-status" role="status" aria-live="polite">Aguardando conexão</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="card" aria-labelledby="channel-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">3. Canal</p>
+            <h2 id="channel-heading">Canal do Companion</h2>
+          </div>
+          <button id="refresh-channels-button" class="button button-small" type="button" disabled>
+            Atualizar canais
+          </button>
+        </div>
+
+        <label class="field-label" for="channel-select">Canal disponível</label>
+        <select id="channel-select" class="field" disabled>
+          <option value="">Conecte-se para carregar os canais</option>
+        </select>
+        <p id="channel-status" class="hint" role="status" aria-live="polite">
+          Nenhum canal carregado.
+        </p>
+      </section>
+
+      <section class="card" aria-labelledby="message-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">4. Mensagem de teste</p>
+            <h2 id="message-heading">Texto comum do MeshCore</h2>
+          </div>
+        </div>
+
+        <form id="message-form">
+          <label class="field-label" for="message-input">Mensagem</label>
+          <textarea
+            id="message-input"
+            class="field field-message"
+            rows="3"
+            placeholder="Digite uma mensagem para o canal selecionado"
+            disabled
+          ></textarea>
+          <div class="button-row">
+            <button id="send-button" class="button button-primary" type="submit" disabled>
+              Enviar mensagem
+            </button>
+            <button id="receive-button" class="button button-secondary" type="button" disabled>
+              Verificar mensagens
+            </button>
+          </div>
+        </form>
+
+        <p id="message-status" class="status-text" role="status" aria-live="polite">
+          Selecione um canal para habilitar o envio.
+        </p>
+
+        <div class="received-panel">
+          <p class="field-label">Última mensagem recebida</p>
+          <output id="received-message" class="received-message">Nenhuma mensagem recebida.</output>
+          <p id="received-meta" class="hint"></p>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="activity-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Diagnóstico local</p>
+            <h2 id="activity-heading">Atividade</h2>
+          </div>
+        </div>
+        <ol id="activity-log" class="activity-log" aria-live="polite">
+          <li>Aplicação carregada. Nenhum dado foi enviado.</li>
+        </ol>
+        <p class="privacy-note">
+          Esta PoC não persiste mensagens, não envia dados para a hospedagem e
+          não solicita nem registra chaves privadas.
+        </p>
+      </section>
+
+      <footer class="footer">
+        <p>
+          PoC de conectividade apenas — não implementa imagens, MM1, FEC ou dados binários.
+        </p>
+      </footer>
+    </main>
+
+    <noscript>
+      <p class="noscript-warning">Ative JavaScript para usar a conexão Bluetooth.</p>
+    </noscript>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

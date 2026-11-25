@@ -40,6 +40,7 @@ codec.
 | Experimento RGB332 | `benchmarks/rgb332_experiment.py` |
 | Executor Issue #24 | `benchmarks/issue24/` e `benchmarks/issue24_experiment.py` |
 | Artefatos Issue #24 | `experiments/issue-24/` |
+| WebApp PoC BLE/texto | `web/` |
 
 ## Limites
 
@@ -292,14 +293,15 @@ navegador; imagens e pacotes não são enviados à hospedagem.
 
 A primeira entrega é uma prova de conceito publicada em HTTPS para validar:
 suporte Web Bluetooth no navegador/plataforma, seleção e conexão do Companion,
-leitura de informações básicas, troca de mensagem de teste e execução do codec
-existente no runtime browser. Chrome/Edge desktop são o alvo inicial; suporte
-Linux deve ser testado cedo. A página deve detectar ausência de
-navigator.bluetooth e orientar o usuário. Não declarar suporte a Firefox ou
-Safari para BLE sem adaptador validado.
+leitura de informações básicas, seleção de canal e troca de uma mensagem de
+texto comum. Essa mensagem valida somente a comunicação do Companion; não
+transporta bytes MM1. A execução do codec existente no runtime browser fica
+para uma etapa posterior e não bloqueia o aceite inicial. Chrome/Edge desktop
+são o alvo inicial; suporte Linux deve ser testado cedo. A página deve detectar
+ausência de `navigator.bluetooth` e orientar o usuário. Não declarar suporte a
+Firefox ou Safari para BLE sem adaptador validado.
 
 O adaptador BLE e as integrações de runtime serão componentes novos, externos
 aos módulos de codec existentes. O protocolo MM1 v1 e seus vetores de teste
 permanecem inalterados. A integração real continua sujeita a validação com duas
 placas físicas e aos limites efetivos do transporte MeshCore.
-

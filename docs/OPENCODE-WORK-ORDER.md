@@ -3,7 +3,7 @@
 - **Objetivo:** orientar o OpenCode na evolucao incremental do MM1 a partir das decisoes de arquitetura acordadas em 2026-11-24.
 - **Abordagem:** Specification-Driven Development (SDD).
 - **Estado deste documento:** requisitos e plano de trabalho; as entregas das Issues #19, #20, #21 e #22 estao registradas na matriz de implementacao.
-- **Baseline conhecida:** protocolo binario MM1 v1; implementacao Python 0.1.0; SDD 0.5.0-draft.
+- **Baseline conhecida:** protocolo binario MM1 v1; implementacao Python 0.1.0; SDD 0.9.1-draft.
 - **Limite inicial de imagem:** 128 x 128 pixels.
 
 Este documento complementa o SDD e nao o substitui. Antes de alterar codigo, conferir o estado real da branch e os documentos atuais. Atualizar a matriz de implementacao e o changelog quando houver mudanca efetiva.
@@ -248,12 +248,13 @@ módulos existentes de codec.
 **Ordem de execução recomendada:**
 1. Prova de conceito estática em GitHub Pages/HTTPS e detecção Web Bluetooth.
 2. Conexão BLE ao Companion e leitura de informações básicas.
-3. Envio/recepção de mensagem de teste pelo mecanismo binário de grupo
-   validado para o firmware, sem usar mensagens de texto para bytes MM1.
+3. Seleção de canal e envio/recepção de uma mensagem de texto comum pelo
+   mecanismo normal do Companion. Essa mensagem é somente um teste funcional e
+   não transporta bytes MM1.
 4. Prova de execução do codec Python existente via Pyodide/WebAssembly, sem
    alterar os arquivos do codec; conferir os vetores/testes de referência.
-5. Adaptador browser BLE para o pipeline MM1 existente e validação do limite
-   real de payload.
+5. Adaptador browser BLE para o mecanismo binário de grupo e para o pipeline
+   MM1 existente, com validação do limite real de payload.
 6. Só então evoluir para UI TX/RX de imagens e ensaio ponta a ponta com duas
    Heltec V3.
 
@@ -263,7 +264,9 @@ transmissão real de imagens continua condicionada à validação do transporte,
 do payload binário de grupo e do ensaio com duas placas. A WebApp não substitui
 essas validações.
 
-**Estado:** backlog arquitetural; não implementado.
+**Estado:** a PoC incremental de BLE/texto está implementada em `web/`, mas o
+aceite com hardware real ainda não foi demonstrado. Codec no browser,
+transporte binário, MM1 e transmissão de imagens permanecem não implementados.
 ---
 
 ## 4. Regras de engenharia para o OpenCode
