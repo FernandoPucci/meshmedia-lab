@@ -54,7 +54,7 @@ que a capacidade existe.
 | Transmissao progressiva | Secao 5 e Fase 8 | Planejado | Nao implementado | Codec atual gera uma representacao unica |
 | Integracao MeshCore | Secao 17 e Fase 9 | Planejado | Nao implementado | Sem adaptador; limites em `docs/meshcore-reference.md` |
 | Perfil de transmissao parametrizado | Etapa A | Proposto | Nao implementado | `docs/transmission-profile.md`; sem presets no codigo |
-| Transmission Descriptor inline | Issue #17 / ADR 0004 | Contrato v1 definido | Implementado localmente nesta branch; pendente de revisao/integracao | `protocol/descriptor.py`, fragmenter/reassembler, TX/RX, `tests/unit/test_descriptor.py`, `tests/integration/test_descriptor_apps.py` |
+| Transmission Descriptor inline | Issue #17 / ADR 0004 | Contrato v1 definido | Implementado e integrado ao master pela PR #43 | `protocol/descriptor.py`, fragmenter/reassembler, TX/RX, `tests/unit/test_descriptor.py`, `tests/integration/test_descriptor_apps.py` |
 | Codec RGB332 | Issue #38 / Fase 7 | Aprovado | Implementado | `src/meshmedia_lab/codec/rgb332.py`, testes unitarios, pipeline e aplicativos locais |
 | Registro RGB332 no MM1 v1 | Issue #38 / Fase 7 | Aprovado sem alterar layout | Implementado | `media.py` (`codec=0x02`, `levels=0`), `packet.py`, testes UDP locais |
 | Limite grayscale de 128 x 128 | Ordem de trabalho / Etapa B | Implementado | Implementado | `media.py`, `codec/encoder.py`, `tests/unit/test_codec.py` e `tests/unit/test_protocol.py` |
@@ -89,8 +89,9 @@ pacotes e prefixo `TD | 16 | corpo v1` no fragmento zero. O modelo/parser valida
 metadados e comprimento, o reassembler limita dados fora de ordem e rejeita
 inconsistencias sem fallback; TX/RX locais e pipeline aceitam os dois modos.
 Testes fixam os bytes legados, o CRC e casos positivos/negativos. O corpo atual
-nao suporta FEC, compressao ou parametros extras. A entrega nesta branch nao
-representa por si so encerramento das Issues #17, #18 ou do agrupador #5.
+nao suporta FEC, compressao ou parametros extras. A PR #43 integrou esta
+extensao ao master; as Issues #17, #18 e #5 foram encerradas apos a revisao
+das evidencias do merge.
 
 ## Propostas que ainda nao sao protocolo
 
@@ -108,10 +109,13 @@ os bytes legados, o cabecalho de 19 bytes ou o CRC. O envio estendido exige RX
 atualizado; nao existe negociacao automatica. Futuras alteracoes dessa extensao
 continuam sujeitas a especificacao e testes de compatibilidade.
 
-## Verificacao local do descritor (2026-11-24)
+## Verificacao da PR #43 (2026-11-24)
 
-Branch `feature/transmission-descriptor`, baseada em `origin/master` `6c9a064`
-(PR #42). Esta verificacao local nao significa merge ou fechamento de Issues.
+A implementacao do descritor foi integrada ao `master` pela PR #43, merge commit
+`6173befa6daf67625e21e0eed3c866b2c424253d`, a partir da branch
+`feature/transmission-descriptor` (`a7f05f2`). A PR registra a execucao local da
+suite e os resultados abaixo. As Issues #17, #18 e #5 foram encerradas apos
+revisao das evidencias e do estado integrado.
 
 ```bash
 PYTHONPATH=src:. python3 -m unittest discover -s tests -p 'test_*.py' -v

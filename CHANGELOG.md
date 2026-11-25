@@ -6,6 +6,13 @@ do software ou do protocolo.
 
 ## [Unreleased]
 
+### Correcao documental apos PR #43
+
+- Atualizado `docs/implementation-status.md` para refletir que o Transmission Descriptor inline esta implementado e integrado ao `master` pela PR #43.
+- Atualizada a verificacao da implementacao para identificar a PR mergeada, seu merge commit e os resultados de teste registrados na propria PR.
+- Atualizado o estado do ADR 0004 para implementado/integrado, sem alterar o contrato tecnico aprovado.
+- Issues #17, #18 e #5 foram encerradas apos revisao das evidencias da PR #43.
+
 ### Documentacao
 
 - Documentado o contrato inline v1 e a decisao de compatibilidade no ADR 0004,
