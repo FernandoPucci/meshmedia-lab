@@ -6,6 +6,18 @@ do software ou do protocolo.
 
 ## [Unreleased]
 
+### Reed-Solomon — Issue #20
+
+- Implementado `ReedSolomonEncoder` e `ReedSolomonDecoder` como algoritmo FEC
+  standalone sobre `GF(2^8)`, com simbolos de um byte, polinomio primitivo
+  `0x11D`, `n <= 255` e sem interleaving.
+- Adicionados testes para os experimentos RS(32,28), RS(32,24) e RS(32,20),
+  vetor independente, padding, erasures, erros desconhecidos e limites
+  `2e + s <= n-k`.
+- Mantida a separacao entre Reed-Solomon, CRC-16/CCITT-FALSE, MM1 v1 e
+  transportes; nenhuma integracao ou alteracao no wire format foi feita.
+- Nenhuma dependencia externa foi adicionada.
+
 ### Correcao documental apos PR #43
 
 - Atualizado `docs/implementation-status.md` para refletir que o Transmission Descriptor inline esta implementado e integrado ao `master` pela PR #43.

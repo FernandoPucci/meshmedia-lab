@@ -20,8 +20,18 @@ from .contract import (
     validate_encoded_block,
     validate_symbol,
 )
+from .reed_solomon import (
+    GF256_GENERATOR,
+    GF256_PRIMITIVE_POLYNOMIAL,
+    REED_SOLOMON_ALGORITHM_ID,
+    ReedSolomonDecoder,
+    ReedSolomonEncoder,
+)
 
 __all__ = [
+    "GF256_GENERATOR",
+    "GF256_PRIMITIVE_POLYNOMIAL",
+    "REED_SOLOMON_ALGORITHM_ID",
     "BytesLike",
     "DecodeFailureReason",
     "DecodeResult",
@@ -36,6 +46,8 @@ __all__ = [
     "FecSymbol",
     "IncompleteBlockPolicy",
     "PaddingPolicy",
+    "ReedSolomonDecoder",
+    "ReedSolomonEncoder",
     "prepare_source_symbols",
     "validate_decode_inputs",
     "validate_encoded_block",

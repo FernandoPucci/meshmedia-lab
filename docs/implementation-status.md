@@ -10,7 +10,7 @@ mas esta matriz e a referencia para distinguir proposta, plano e implementacao.
 |---|---|
 | Versao do software | `0.1.0` |
 | Versao do protocolo binario | `1` |
-| Revisao do SDD | `0.5.0-draft` |
+| Revisao do SDD | `0.6.0-draft` |
 | Conformidade | Parcial |
 | Ultima revisao | 2026-11-25 |
 
@@ -25,6 +25,7 @@ dos pacotes.
 |---|---|
 | Implementado | Existe codigo, teste automatizado e comportamento documentado. |
 | Parcial | Existe codigo, mas ele cobre apenas parte do requisito. |
+| Experimento standalone | Existe codigo e teste isolado, sem integracao de protocolo ou transporte. |
 | Proposto | Existe uma decisao ou desenho tecnico, mas nao existe implementacao. |
 | Planejado | Foi identificado como trabalho futuro, sem desenho fechado. |
 | Futuro | Visao de longo prazo fora da etapa atual, sem autorizacao de implementacao. |
@@ -46,9 +47,9 @@ que a capacidade existe.
 | Transporte UDP local | Secoes 13 e 20 | Baseline de laboratorio | Implementado | `src/meshmedia_lab/transport/udp.py`, testes de integracao |
 | Simulacao de perda independente | Secao 11 | Parcial | Implementado | `src/meshmedia_lab/simulation/channel.py` |
 | Perda em rajadas, latencia e jitter | Secao 11 | Planejado | Nao implementado | Sem suporte no simulador atual |
-| FEC funcional | Secao 9.3 | Proposto | Nao implementado | Existe somente o contrato abstrato; sem algoritmo ou integracao |
-| Reed-Solomon | Secao 10 e Fase 5 | Proposto | Nao implementado | Sem encoder ou decoder RS |
-| Parametrizacao RS experimental | Secao 10 e Fase 5 | Proposto | Nao implementado | Matriz documentada, sem experimento executavel |
+| FEC standalone | Secao 9.3 | Experimento standalone | Parcial | Reed-Solomon funcional sem integracao MM1; `src/meshmedia_lab/fec/reed_solomon.py` |
+| Reed-Solomon | Secao 10 e Fase 5 | Experimento standalone | Implementado | `ReedSolomonEncoder`, `ReedSolomonDecoder` e `tests/unit/test_reed_solomon.py` |
+| Parametrizacao RS experimental | Secao 10 e Fase 5 | Experimento standalone | Parcial | RS(32,28), RS(32,24), RS(32,20) e vetores unitarios; sem executor geral |
 | Interface abstrata FEC | Issue #19 / `docs/error-control.md` | Contrato implementado | Implementado | `src/meshmedia_lab/fec/contract.py`, `tests/unit/test_fec.py` |
 | ACK, NACK e retransmissao | Secao 9.2 e Fase 6 | Planejado | Nao implementado | Sem mensagens de controle |
 | Transmissao progressiva | Secao 5 e Fase 8 | Planejado | Nao implementado | Codec atual gera uma representacao unica |
@@ -81,8 +82,9 @@ O MVP local atualmente funciona desta forma:
    fora de `1..64`. As dimensoes continuam independentes em ambos os codecs.
 
 Consequentemente, uma perda ou uma corrupcao detectada pelo CRC torna a
-transmissao incompleta no MVP. O contrato abstrato FEC agora existe para
-validar futuras implementacoes, mas FEC funcional e retransmissao continuam
+transmissao incompleta no MVP. O algoritmo Reed-Solomon standalone pode
+recuperar blocos FEC em memoria dentro dos limites matematicos documentados,
+mas nao e chamado pelo pipeline MM1. Integracao FEC e retransmissao continuam
 indisponiveis.
 
 O modo legado continua default. O modo `descriptor` usa flag `0x04` em todos os
@@ -140,6 +142,25 @@ Indisponiveis: `No module named pytest` (exit 1) e `ruff: comando nao encontrado
 (exit 127). Nenhuma dependencia foi adicionada/instalada. Sem ensaio MeshCore,
 radio ou FEC; resultados anteriores do benchmark RGB332 nao foram reproduzidos
 nem alterados.
+
+## Verificacao da Issue #20 (2026-11-25)
+
+A implementacao standalone foi validada sem alterar o protocolo MM1 v1, o
+cabecalho, o descritor ou o CRC. Os testes cobrem vetores independentes,
+codificacao dos tres tamanhos experimentais, padding, erasures, erros
+desconhecidos, combinacoes no limite `2e + s <= n-k`, falhas acima do limite,
+indices duplicados e compatibilidade com os protocolos FEC.
+
+```bash
+PYTHONPATH=src:. python3 -m unittest discover -s tests -p 'test_*.py'
+python3 -m pytest -q
+ruff check src/meshmedia_lab/fec tests/unit/test_reed_solomon.py
+```
+
+Resultado registrado: 104 testes passaram no `unittest`, 104 testes passaram
+no `pytest` e a verificacao Ruff da camada FEC passou. Nao foi adicionada
+dependencia externa. A execucao global do Ruff ainda possui apontamentos
+preexistentes fora da camada desta Issue.
 
 ## Como atualizar a matriz
 

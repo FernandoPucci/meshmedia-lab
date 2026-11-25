@@ -19,7 +19,7 @@ os valores efetivamente usados em cada transmissao e experimento.
 | Limite de 128 x 128 | Implementado no grayscale; nao inclui tiling |
 | Descritor inline no primeiro fragmento | Implementado localmente como extensao opt-in v1; ADR 0004 |
 | RGB332 | Implementado no codec e no envelope MM1 v1 |
-| Contrato FEC parametrizavel | Implementado sem algoritmo concreto ou integracao |
+| Contrato FEC parametrizavel | Implementado; RS standalone experimental sem integracao |
 | Perfis nomeados ou presets | Futuro; fora desta etapa |
 
 O protocolo continua sendo MM1 v1. O descritor nao cria uma v2 e nao altera o
@@ -176,8 +176,9 @@ habilita FEC no MM1 v1 atual.
 
 Esses campos sao apenas proposta para uma revisao futura: o corpo v1 do
 descritor implementado nao os transporta e nao habilita FEC. A baseline segue
-`fec_algorithm=none`, sem bytes de reparo. Reed-Solomon e candidato experimental,
-nao recomendacao de producao.
+`fec_algorithm=none`, sem bytes de reparo. Reed-Solomon standalone e um
+experimento implementado, nao uma recomendacao de producao nem uma
+funcionalidade do protocolo.
 
 CRC e FEC continuam sendo camadas diferentes:
 
