@@ -4,7 +4,7 @@ const MESHCORE_MODULE_URL =
 const CONNECT_TIMEOUT_MS = 15_000;
 const OPERATION_TIMEOUT_MS = 12_000;
 
-const { Constants, WebBleConnection } = await import(MESHCORE_MODULE_URL);
+const { Constants, WebSerialConnection } = await import(MESHCORE_MODULE_URL);
 
 export { MESHCORE_JS_VERSION, MESHCORE_MODULE_URL };
 
@@ -33,16 +33,12 @@ async function withTimeout(operation, timeoutMs, timeoutMessage) {
 }
 
 function waitForConnected(connection) {
-  if (connection.gattServer && connection.rxCharacteristic && connection.txCharacteristic) {
-    return Promise.resolve();
-  }
-
   return new Promise((resolve, reject) => {
     let settled = false;
     const timer = setTimeout(() => {
       finish(
         new MeshCoreAdapterError(
-          "O Companion não concluiu a inicialização BLE no tempo esperado.",
+          "O Companion não concluiu a inicialização USB/serial no tempo esperado.",
           "connect-timeout",
         ),
       );
@@ -76,7 +72,7 @@ function waitForConnected(connection) {
   });
 }
 
-export class MeshCoreBleAdapter {
+export class MeshCoreSerialAdapter {
   constructor({ onMessage = () => {}, onStateChange = () => {}, onError = () => {} } = {}) {
     this.connection = null;
     this.channels = [];
@@ -102,10 +98,10 @@ export class MeshCoreBleAdapter {
     this.emitState("connecting");
     let connection = null;
     try {
-      connection = await WebBleConnection.open();
+      connection = await WebSerialConnection.open();
       if (!connection) {
         throw new MeshCoreAdapterError(
-          "A seleção do dispositivo Bluetooth foi cancelada.",
+          "A seleção da porta USB foi cancelada.",
           "cancelled",
         );
       }
@@ -123,7 +119,7 @@ export class MeshCoreBleAdapter {
         try {
           await connection.close();
         } catch {
-          // A failed initialization may not have a closable GATT server.
+          // A failed initialization may not have a closable serial port.
         }
       }
       this.connection = null;
@@ -218,8 +214,18 @@ export class MeshCoreBleAdapter {
   }
 
   connectionDetails() {
+    const info = this.connection?.serialPort?.getInfo?.() || {};
+    const identifiers = [];
+    if (Number.isInteger(info.usbVendorId)) {
+      identifiers.push(`VID 0x${info.usbVendorId.toString(16).padStart(4, "0")}`);
+    }
+    if (Number.isInteger(info.usbProductId)) {
+      identifiers.push(`PID 0x${info.usbProductId.toString(16).padStart(4, "0")}`);
+    }
     return {
-      deviceName: this.connection?.bleDevice?.name || "MeshCore Companion",
+      deviceName: identifiers.length
+        ? `Companion USB/Serial (${identifiers.join(", ")})`
+        : "Companion USB/Serial",
       libraryVersion: MESHCORE_JS_VERSION,
     };
   }

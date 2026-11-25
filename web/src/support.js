@@ -1,38 +1,38 @@
-export function detectWebBluetoothSupport(runtime = globalThis) {
+export function detectWebSerialSupport(runtime = globalThis) {
   const secureContext = runtime.isSecureContext === true;
-  const webBluetooth =
-    Boolean(runtime.navigator) && "bluetooth" in runtime.navigator;
+  const webSerial =
+    typeof runtime.navigator?.serial?.requestPort === "function";
 
-  let message = "Web Bluetooth disponível. Você pode solicitar a conexão.";
+  let message = "Web Serial disponível. Você pode selecionar uma porta USB.";
   if (!secureContext) {
-    message = "Abra esta página em um contexto seguro HTTPS para usar Bluetooth.";
-  } else if (!webBluetooth) {
-    message = "Este navegador não oferece Web Bluetooth. Use Chrome ou Edge desktop.";
+    message = "Abra esta página em um contexto seguro HTTPS para usar Web Serial.";
+  } else if (!webSerial) {
+    message = "Este navegador não oferece Web Serial. Use Chrome ou Edge desktop.";
   }
 
   return {
     secureContext,
-    webBluetooth,
-    supported: secureContext && webBluetooth,
+    webSerial,
+    supported: secureContext && webSerial,
     message,
   };
 }
 
 export function formatConnectionError(error) {
   if (error?.code === "cancelled" || error?.name === "AbortError") {
-    return "Seleção do dispositivo cancelada.";
+    return "Seleção da porta USB cancelada.";
   }
   if (error?.name === "NotFoundError") {
-    return "Nenhum dispositivo Companion foi selecionado.";
+    return "Nenhuma porta USB do Companion foi selecionada.";
   }
-  if (error?.name === "SecurityError") {
-    return "O navegador bloqueou a permissão Bluetooth neste contexto.";
+  if (error?.name === "SecurityError" || error?.name === "NotAllowedError") {
+    return "O navegador bloqueou a permissão da porta serial neste contexto.";
   }
   if (error?.name === "NetworkError") {
-    return "Não foi possível estabelecer ou manter a conexão Bluetooth.";
+    return "Não foi possível abrir ou manter a conexão USB/serial.";
   }
   if (error?.name === "InvalidStateError") {
-    return "O dispositivo já está conectado ou em uso por outra aplicação.";
+    return "A porta USB já está conectada ou em uso por outra aplicação.";
   }
   if (error?.message) {
     return error.message;

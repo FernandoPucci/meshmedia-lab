@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="PoC browser-only do MeshMedia Lab para MeshCore Companion">
-    <title>MeshMedia Lab — PoC BLE</title>
+    <meta name="description" content="PoC browser-only do MeshMedia Lab para MeshCore Companion USB">
+    <title>MeshMedia Lab — PoC USB/Serial</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="./styles.css">
   </head>
@@ -12,10 +12,10 @@
     <main class="shell">
       <header class="hero">
         <p class="eyebrow">MeshMedia Lab</p>
-        <h1>Companion Bluetooth</h1>
+        <h1>Companion USB/Serial</h1>
         <p class="intro">
-          Prova de conceito browser-only para conectar ao MeshCore Companion e
-          trocar mensagens de texto em um canal.
+          Prova de conceito browser-only para conectar por USB ao MeshCore
+          Companion e trocar mensagens de texto em um canal.
         </p>
       </header>
 
@@ -28,10 +28,10 @@
           <span id="support-badge" class="badge badge-neutral">Verificando</span>
         </div>
         <p id="support-status" class="status-text" role="status" aria-live="polite">
-          Verificando contexto seguro e Web Bluetooth…
+          Verificando contexto seguro e Web Serial…
         </p>
         <p class="hint">
-          O acesso Bluetooth somente é solicitado depois de uma ação explícita
+          O acesso à porta USB somente é solicitado depois de uma ação explícita
           neste botão. Use Chrome ou Edge desktop em HTTPS.
         </p>
       </section>
@@ -47,7 +47,7 @@
 
         <div class="button-row">
           <button id="connect-button" class="button button-primary" type="button">
-            Conectar por Bluetooth
+            Conectar por USB/Serial
           </button>
           <button id="disconnect-button" class="button button-secondary" type="button" disabled>
             Desconectar
@@ -148,7 +148,7 @@
     </main>
 
     <noscript>
-      <p class="noscript-warning">Ative JavaScript para usar a conexão Bluetooth.</p>
+      <p class="noscript-warning">Ative JavaScript para usar a conexão USB/serial.</p>
     </noscript>
     <script type="module" src="./src/app.js"></script>
   </body>

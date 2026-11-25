@@ -1,12 +1,12 @@
-# MeshMedia Lab WebApp — PoC BLE
+# MeshMedia Lab WebApp — PoC USB/Serial
 
 Esta pasta contém a primeira PoC browser-only do MeshMedia Lab.
 
 ## Escopo desta PoC
 
 - página estática;
-- detecção de contexto seguro e `navigator.bluetooth`;
-- conexão ao firmware MeshCore Companion por Web Bluetooth;
+- detecção de contexto seguro e `navigator.serial`;
+- conexão USB ao firmware MeshCore Companion por Web Serial;
 - leitura dos canais disponíveis;
 - envio e recepção de mensagens de texto comuns;
 - diagnóstico somente em memória no navegador.
@@ -23,12 +23,13 @@ A integração usa, por enquanto, um import ESM versionado da biblioteca
 `src/meshcore-adapter.js`; nenhum segredo, mensagem ou dado de mídia é enviado
 para o CDN.
 
-A biblioteca foi escolhida porque expõe `WebBleConnection`, `getChannels()`,
-`sendChannelTextMessage()` e `getWaitingMessages()`. O envio binário
+A biblioteca foi escolhida porque expõe `WebSerialConnection`, `getChannels()`,
+`sendChannelTextMessage()` e `getWaitingMessages()`. A conexão é aberta a
+`115200` baud pelo protocolo serial do Companion. O envio binário
 `sendChannelData()` não é usado nesta PoC.
 
 O uso via ESM remoto evita introduzir um bundler ou dependências de build antes
-de comprovar o fluxo BLE. Antes da integração MM1, a dependência deverá ser
+de comprovar o fluxo USB/serial. Antes da integração MM1, a dependência deverá ser
 reavaliada quanto a bundle browser, política de carregamento, versão fixada e
 limites reais do Companion.
 
@@ -42,8 +43,9 @@ python3 -m http.server 8000 --directory web
 ```
 
 Abra `http://localhost:8000/` em Chrome ou Edge desktop. O dispositivo precisa
-estar executando o firmware MeshCore Companion Bluetooth e o sistema
-operacional precisa ter Bluetooth disponível.
+estar executando o firmware MeshCore Companion compatível com USB/serial e estar
+conectado por USB. O caminho upstream correspondente é documentado como
+`companion_radio_usb`.
 
 ## Publicação
 
@@ -55,13 +57,14 @@ configurado para usar **GitHub Actions** como fonte do Pages.
 
 Registrar pelo menos:
 
-- modelo da placa e versão/build do firmware Companion;
+- modelo da placa e versão/build do firmware Companion USB;
 - sistema operacional e versão do Chrome/Edge;
 - versão `@liamcottle/meshcore.js`;
+- identificação USB da porta, quando exibida pelo navegador;
 - índices/nomes dos canais usados, sem registrar segredos;
 - estação transmissora e receptora;
 - texto enviado, horário e resultado observado;
 - desconexões ou erros.
 
 O aceite da PoC exige duas estações MeshCore reais. Testes com mock não
-comprovam conexão BLE nem entrega pelo rádio.
+comprovam conexão Web Serial nem entrega pelo rádio.

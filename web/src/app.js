@@ -1,4 +1,4 @@
-import { detectWebBluetoothSupport, formatConnectionError } from "./support.js";
+import { detectWebSerialSupport, formatConnectionError } from "./support.js";
 
 const elements = {
   supportBadge: document.querySelector("#support-badge"),
@@ -21,7 +21,7 @@ const elements = {
   activityLog: document.querySelector("#activity-log"),
 };
 
-const support = detectWebBluetoothSupport();
+const support = detectWebSerialSupport();
 let adapter = null;
 let adapterModulePromise = null;
 let channels = [];
@@ -106,7 +106,7 @@ async function getAdapter() {
   }
   const module = await adapterModulePromise;
   if (!adapter) {
-    adapter = new module.MeshCoreBleAdapter({
+    adapter = new module.MeshCoreSerialAdapter({
       onMessage: handleIncomingMessage,
       onStateChange: setConnectionState,
       onError: (error) => addActivity(`Erro de recepção: ${formatConnectionError(error)}`),
@@ -120,7 +120,7 @@ async function connect() {
     return;
   }
   setConnectionState({ status: "connecting" });
-  elements.messageStatus.textContent = "Solicitando seleção do Companion…";
+  elements.messageStatus.textContent = "Solicitando seleção da porta USB…";
   try {
     const meshCoreAdapter = await getAdapter();
     const details = await meshCoreAdapter.connect();

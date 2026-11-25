@@ -186,7 +186,7 @@ Documentacao complementar:
   locais e artefatos visuais do experimento RGB332.
 - [`docs/meshcore-reference.md`](docs/meshcore-reference.md): formato MeshCore, limites de pacote e encaixe do MM1.
 - [`docs/error-control.md`](docs/error-control.md): CRC, FEC, Reed-Solomon e plano de afericao.
-- [`web/README.md`](web/README.md): PoC da WebApp estática browser-only para BLE e texto.
+- [`web/README.md`](web/README.md): PoC da WebApp estática browser-only para Web Serial/USB e texto.
 - [`experiments/issue-24/README.md`](experiments/issue-24/README.md):
   executor e artefatos da comparacao CRC/FEC da Issue #24.
 - [`docs/references.md`](docs/references.md): referencias academicas, normativas e tecnicas.
@@ -198,7 +198,7 @@ datagramas UDP, medir a quantidade de mensagens e visualizar a imagem
 reconstruida sem alterar o nucleo do codec.
 
 A pasta [`web/`](web/README.md) contém a PoC estática browser-only de conexão ao
-MeshCore Companion por BLE e troca de mensagens de texto. Ela ainda não
+MeshCore Companion por Web Serial/USB e troca de mensagens de texto. Ela ainda não
 transmite imagens, pacotes MM1 ou dados binários.
 
 ## Estrutura
@@ -209,7 +209,7 @@ transmite imagens, pacotes MM1 ou dados binários.
 ├── sdd/                     # Especificacao orientadora do projeto
 ├── apps/                    # Aplicacoes e README dos testes locais
 │   └── local/               # TX, RX, logs e integracao Pillow
-├── web/                     # PoC WebApp estática BLE/texto
+├── web/                     # PoC WebApp estática Web Serial/texto
 ├── src/meshmedia_lab/
 │   ├── application/         # Casos de uso e pipeline
 │   ├── codec/               # Encoder e decoder de imagem

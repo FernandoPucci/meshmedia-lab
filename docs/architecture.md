@@ -40,7 +40,7 @@ codec.
 | Experimento RGB332 | `benchmarks/rgb332_experiment.py` |
 | Executor Issue #24 | `benchmarks/issue24/` e `benchmarks/issue24_experiment.py` |
 | Artefatos Issue #24 | `experiments/issue-24/` |
-| WebApp PoC BLE/texto | `web/` |
+| WebApp PoC serial/texto | `web/` |
 
 ## Limites
 
@@ -257,8 +257,8 @@ resumos, graficos e um visualizador local com dois paineis de mesma escala.
 
 A aplicação web é planejada como uma página estática hospedada em GitHub Pages
 (HTTPS). O usuário abre a URL e conecta diretamente o MeshCore Companion por
-BLE, sem instalar software, clonar o repositório, iniciar backend local ou
-executar Docker/Python na máquina.
+Web Serial/USB, sem instalar software, clonar o repositório, iniciar backend
+local ou executar Docker/Python na máquina.
 
 A WebApp deve consumir o codec Python existente em
 src/meshmedia_lab/codec/ **sem alterar ou reescrever sua implementação**.
@@ -267,22 +267,21 @@ hipótese precisa ser validada por uma prova de conceito; se não for possível
 executar o codec existente sem modificações, a implementação deve parar para
 revisão humana, sem criar um codec paralelo.
 
-A biblioteca meshcore.js será avaliada para a conexão Web Bluetooth com o
-firmware MeshCore Companion. Sua API real para conexão, notificações e envio de
-dados binários de grupo precisa ser confirmada antes de adotá-la. O firmware
-Bluetooth atual permanece como caminho primário; USB/Web Serial é alternativa
-futura, não requisito.
+A biblioteca meshcore.js será usada pela `WebSerialConnection` para o firmware
+MeshCore Companion compatível com USB. Sua API real para abertura da porta,
+notificações e envio de dados binários de grupo precisa ser confirmada antes
+de adotá-la para MM1. Web Bluetooth permanece como alternativa futura.
 
 ```mermaid
 flowchart LR
     subgraph TX["TX — navegador / HTTPS"]
         TUI["Web UI"] --> PYTX["Pyodide<br/>codec + MM1 existente"]
-        PYTX --> BLETX["Adaptador Web Bluetooth"]
+        PYTX --> SERIALTX["Adaptador Web Serial/USB"]
     end
-    BLETX <--> MESH["MeshCore Companion<br/>canal privado"]
-    MESH <--> BLERX["Adaptador Web Bluetooth"]
+    SERIALTX <--> MESH["MeshCore Companion<br/>canal privado"]
+    MESH <--> SERIALRX["Adaptador Web Serial/USB"]
     subgraph RX["RX — navegador / HTTPS"]
-        BLERX --> PYRX["Pyodide<br/>MM1 + codec existente"]
+        SERIALRX --> PYRX["Pyodide<br/>MM1 + codec existente"]
         PYRX --> RUI["Web UI<br/>imagem reconstruída"]
     end
 ```
@@ -292,16 +291,16 @@ fragmentação, recepção, reassemblagem e decodificação devem ocorrer no
 navegador; imagens e pacotes não são enviados à hospedagem.
 
 A primeira entrega é uma prova de conceito publicada em HTTPS para validar:
-suporte Web Bluetooth no navegador/plataforma, seleção e conexão do Companion,
-leitura de informações básicas, seleção de canal e troca de uma mensagem de
+suporte Web Serial no navegador/plataforma, seleção e conexão da porta USB do
+Companion, leitura de informações básicas, seleção de canal e troca de uma mensagem de
 texto comum. Essa mensagem valida somente a comunicação do Companion; não
 transporta bytes MM1. A execução do codec existente no runtime browser fica
 para uma etapa posterior e não bloqueia o aceite inicial. Chrome/Edge desktop
 são o alvo inicial; suporte Linux deve ser testado cedo. A página deve detectar
-ausência de `navigator.bluetooth` e orientar o usuário. Não declarar suporte a
-Firefox ou Safari para BLE sem adaptador validado.
+ausência de `navigator.serial` e orientar o usuário. Não declarar suporte a
+Firefox ou Safari para Web Serial sem adaptador validado.
 
-O adaptador BLE e as integrações de runtime serão componentes novos, externos
+O adaptador Web Serial/USB e as integrações de runtime serão componentes novos, externos
 aos módulos de codec existentes. O protocolo MM1 v1 e seus vetores de teste
 permanecem inalterados. A integração real continua sujeita a validação com duas
 placas físicas e aos limites efetivos do transporte MeshCore.
