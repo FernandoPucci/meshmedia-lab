@@ -9,7 +9,9 @@ proposta experimental.
 | CRC-16/CCITT-FALSE | Implementado por pacote |
 | Contrato abstrato FEC | Implementado |
 | FEC standalone | Reed-Solomon implementado para experimentos isolados |
-| Integracao FEC no MM1 | Nao implementada |
+| Preparacao FEC no TX | Implementada sobre o contrato abstrato |
+| Integracao FEC opt-in no MM1 | Implementada como extensao experimental |
+| Recuperacao FEC no RX | Implementada no pipeline local |
 | Retransmissao seletiva | Nao implementada |
 
 O estado completo de conformidade esta em
@@ -37,19 +39,19 @@ usa redundancia para corrigir ou recuperar. Os termos nao sao sinonimos.
 ```text
 Imagem
   -> encoder grayscale ou RGB332
-  -> descritor inline opcional (sem FEC)
-  -> fragmentacao em payloads
-  -> cabecalho + payload
-  -> CRC-16/CCITT-FALSE
+  -> [sem FEC] descritor opcional -> fragmentacao MM1 v1
+  -> [com FEC] blocos -> simbolos de origem/reparo -> frames FEC
+  -> cabecalho MM1 v1 + payload + CRC-16/CCITT-FALSE
   -> transporte local UDP ou em memoria
   -> validacao do CRC
-  -> reassemblagem quando todos os fragmentos existem
-  -> decoder
+  -> [sem FEC] reassemblagem legada
+  -> [com FEC] agrupamento por bloco/simbolo -> decoder FEC
+  -> decoder de imagem
 ```
 
-O protocolo atual nao gera simbolos de reparo. Se um pacote for perdido, ou se
-for corrompido e rejeitado pelo CRC, o `Reassembler` nao consegue concluir a
-imagem.
+No caminho sem FEC, um pacote perdido ou rejeitado pelo CRC continua tornando
+a transmissao incompleta. No caminho FEC, a posicao ausente e informada como
+erasure ao decoder quando ainda houver simbolos suficientes no bloco.
 
 ## 3. CRC-16/CCITT-FALSE
 
@@ -119,6 +121,12 @@ com exports controlados por `src/meshmedia_lab/fec/__init__.py`. O contrato e
 testado por [`tests/unit/test_fec.py`](../tests/unit/test_fec.py) usando uma
 implementacao fake, sem alegar recuperacao matematica.
 
+A preparacao de uma transmissao completa esta em
+`src/meshmedia_lab/fec/transmission.py`. Ela divide os bytes produzidos pelo
+codec em blocos com capacidade `k * symbol_size`, chama o `FecEncoder` para
+cada bloco e conserva a ordem, o indice do bloco e o
+`FecBlockMetadata`. O caminho nao conhece pixels, pacotes ou transporte.
+
 O contrato logico e:
 
 ```text
@@ -130,8 +138,9 @@ FecDecoder.decode(received_symbols, erasures, config, metadata)
 ```
 
 O decoder recebe os metadados locais do bloco porque somente `config` nao
-carrega o comprimento original necessario para remover padding. Esse argumento
-nao representa um campo de pacote e nao altera o wire format MM1 v1.
+carrega o comprimento original necessario para remover padding. O contrato
+continua recebendo o tipo local; no modo FEC, seus valores equivalentes sao
+transportados pelo frame `FC` sem alterar o wire format legado.
 
 Os contratos de encoder e decoder usarao `typing.Protocol`, seguindo as
 interfaces estruturais existentes no projeto. Nao sera criada uma hierarquia
@@ -160,8 +169,8 @@ As politicas serao tipos explicitos:
 - `IncompleteBlockPolicy.PAD_TO_K`: completa o bloco ate `k` simbolos.
 
 O comprimento original e a quantidade de padding serao preservados em
-metadados locais imutaveis. Nenhuma dessas politicas sera serializada nesta
-Issue.
+metadados locais imutaveis. No modo FEC integrado, as politicas tambem sao
+transportadas no frame `FC` para permitir a validacao no RX.
 
 Uma configuracao invalida deve falhar antes de codificar. Exemplos: simbolo
 com tamanho zero, `k` zero, `r` negativo, `n` diferente de `k + r` quando o
@@ -202,8 +211,8 @@ experimento RS-only e precisam ser identificadas no resultado.
 
 O comportamento do ultimo bloco deve ser escolhido por configuracao. As
 alternativas sao rejeitar o bloco, preencher ate `k` simbolos ou usar uma
-representacao explicita de comprimento. O valor adotado deve aparecer no
-descritor e no registro do experimento quando FEC for integrado.
+representacao explicita de comprimento. No modo FEC integrado, o valor adotado
+aparece no frame `FC` e no registro do experimento.
 
 Um decoder nao pode prometer recuperacao fora dos limites do algoritmo. Para
 Reed-Solomon, a referencia classica e `2e + s <= n-k`, onde `e` sao erros
@@ -228,8 +237,58 @@ flowchart LR
 
 A interface deve permitir Hamming, BCH, Reed-Solomon ou outro algoritmo sem
 modificar o contrato do codec de imagem. A Issue #19 implementa o contrato e
-suas validacoes; a Issue #20 implementa somente o algoritmo Reed-Solomon
-standalone, sem integracao ou serializacao FEC no protocolo.
+suas validacoes; a Issue #20 implementa o algoritmo Reed-Solomon e as Issues
+#21/#22 integram a preparacao e a recuperacao sem acoplar o pipeline a essa
+classe concreta.
+
+### 4.2.1 Extensao FEC opt-in no MM1 v1
+
+O MM1 v1 legado continua com header de 19 bytes, CRC de 2 bytes e os mesmos
+campos. A integracao FEC usa a flag nova `FLAG_FEC=0x08`, que nao reutiliza
+`INLINE_DESCRIPTOR=0x04`. Essa flag seleciona uma extensao experimental que
+exige um RX atualizado; ela nao transforma o caminho legado em FEC nem promete
+interoperabilidade transparente com um RX antigo.
+
+Cada pacote FEC carrega um `FecSymbolFrame` no payload. O frame usa o marcador
+`FC`, versao `1` e repete os parametros necessarios para que a perda do primeiro
+pacote nao esconda a configuracao:
+
+| Campo | Funcao |
+|---|---|
+| `algorithm_id` | Identifica o encoder/decoder sem fixar a classe no contrato |
+| `symbol_size`, `data_symbols`, `repair_symbols`, `block_symbols` | Configuracao do bloco |
+| `interleaving_depth` e politicas | Reproduzem o `FecConfig` |
+| `encoded_length`, `total_blocks` | Associam todos os blocos a uma transmissao |
+| `block_index`, `symbol_index` | Identificam a posicao do simbolo |
+| `original_length`, `padding_length` | Preservam o `FecBlockMetadata` local |
+| `symbol_data` | Dados do simbolo de origem ou reparo |
+
+O layout binario do frame e:
+
+```text
+magic(2) | frame_version(1) | algorithm_id_length(1)
+| symbol_size(2) | data_symbols(2) | repair_symbols(2)
+| block_symbols(2) | interleaving_depth(2)
+| padding_policy(1) | incomplete_block_policy(1)
+| encoded_length(4) | total_blocks(2) | block_index(2)
+| original_length(4) | padding_length(4) | symbol_index(2)
+| algorithm_id(N) | symbol_data(symbol_size)
+```
+
+O indice `0..k-1` identifica simbolos de origem; os indices restantes
+identificam reparos. A implementacao inicial envia um simbolo por pacote.
+`fragment_number` continua sendo o numero do fragmento MM1 e segue a ordem
+`block_index * n + symbol_index`; `total_fragments` e `total_blocks * n`.
+
+O frame FEC fica dentro do payload normal do pacote MM1, portanto o CRC
+continua cobrindo header e payload. Um pacote rejeitado pelo CRC desaparece
+antes da camada FEC e sua posicao esperada e tratada como erasure. Uma
+alteracao que passe pelo CRC continua sendo um erro desconhecido e fica sujeita
+aos limites matematicos do Reed-Solomon.
+
+O Transmission Descriptor v1 nao foi alterado. Quando usado junto com FEC, o
+prefixo `TD` permanece no primeiro payload e o frame FEC vem depois dele; os
+parametros FEC continuam no frame FEC, nao no corpo do descritor.
 
 ### FEC, retransmissao e CRC
 
@@ -310,8 +369,8 @@ deterministicamente as posicoes do codeword.
 
 O bloco de origem possui capacidade `k` bytes. Quando permitido por
 `PaddingPolicy.ZERO_PAD` e `IncompleteBlockPolicy.PAD_TO_K`, bytes zero
-completam o bloco; `FecBlockMetadata` preserva o comprimento original e nao e
-serializado nesta Issue. `PaddingPolicy.REJECT` e
+completam o bloco; `FecBlockMetadata` preserva o comprimento original e e
+repetido no frame `FC` durante a integracao. `PaddingPolicy.REJECT` e
 `IncompleteBlockPolicy.REJECT` continuam sendo aplicadas pelo contrato.
 
 O decoder trata todas as posicoes ausentes como erasures e tambem aceita erros
@@ -322,9 +381,10 @@ consistente com os simbolos recebidos, o resultado e uma falha sem
 `symbol_size` diferente de `1` ou interleaving diferente de zero, em vez de
 atribuir semantica nao documentada a esses campos.
 
-Essa definicao fecha a representacao do experimento da Issue #20, mas nao
-cria perfil de transmissao, campo de cabecalho, flag `FEC_PRESENT` ou
-compatibilidade adicional no protocolo MM1 v1.
+Essa definicao fecha a representacao matematica da Issue #20. A extensao
+experimental das Issues #21/#22 usa a flag `FLAG_FEC=0x08` e frames `FC`
+descritos na secao 4.2.1, sem alterar o layout do header, o CRC ou o corpo do
+Transmission Descriptor v1.
 
 O vetor independente fixado para a codificacao e `k=4`, `r=3`, origem
 `01 02 03 04` e codeword completo
@@ -333,7 +393,7 @@ esse valor e verificado diretamente em
 `tests/unit/test_reed_solomon.py`, sem gerar a expectativa a partir do
 encoder sob teste.
 
-## 6. Camada candidata para o protocolo
+## 6. Camada integrada para o protocolo
 
 Uma arquitetura candidata para um canal orientado a pacotes e:
 
@@ -357,18 +417,21 @@ pacote recebido
   -> reassemblar bytes de origem
 ```
 
-Essa ordem e uma proposta de experimento. Ela trata um pacote perdido ou
-rejeitado pelo CRC como uma erasure conhecida. Para isso, uma futura extensao do
-cabecalho precisara identificar pelo menos o bloco FEC, o indice do simbolo, o
-tamanho do bloco e a configuracao `k/n` ou um perfil equivalente.
+Essa ordem e a implementacao experimental atual. Ela trata um pacote perdido ou
+rejeitado pelo CRC como uma erasure conhecida. O frame FEC identifica bloco,
+simbolo, configuracao e metadados locais, enquanto o envelope MM1 continua
+responsavel por sequenciamento e CRC.
 
-O protocolo atual nao possui esses campos. A flag `FEC_PRESENT` do SDD e
-conceitual e nao existe nas flags implementadas em `packet.py`. A flag `0x04`
-identifica somente INLINE_DESCRIPTOR (ADR 0004), nunca FEC. O corpo v1 do
-descritor nao transporta parametros FEC: sera necessaria revisao futura,
-explicitamente aprovada, antes dessa integracao.
+O modo sem FEC permanece o default e usa somente os caminhos legados ou com
+descritor ja existentes. O modo FEC e explicitamente opt-in e nao deve ser
+enviado a um RX que nao conheca `FLAG_FEC=0x08`.
 
 ## 7. Plano de afericao
+
+As Issues #21/#22 adicionam testes locais de preparacao, packetizacao,
+reassemblagem, perdas e recuperacao para grayscale e RGB332. Esses testes
+demonstram a integracao funcional, mas nao sao benchmarks de radio e nao
+selecionam uma configuracao de producao.
 
 Cada configuracao deve ser comparada com uma mesma imagem, codec, resolucao,
 quantizacao, tamanho de payload e semente de simulacao. A comparacao inicial
@@ -414,10 +477,10 @@ e somente um harness controlado e nao um modo do MM1 v1.
 - O CRC atual detecta corrupcao, mas nao autentica o remetente.
 - A implementacao standalone usa simbolos de um byte; vetores de simbolos
   permanecem fora desta primeira variante.
-- Ainda nao foi decidido se o FEC atuara sobre bytes individuais, vetores de
-  payload ou fragmentos completos.
-- Ainda nao foi definido como os simbolos de reparo serao identificados no
-  cabecalho.
+- A implementacao atual usa simbolos de um byte em frames FEC, um simbolo por
+  pacote, e identifica reparos pelo indice `k..n-1`.
+- A extensao FEC nao e uma recomendacao de producao; seu custo de overhead
+  deve ser medido antes de escolher parametros.
 - O impacto de perdas em rajada e intercalacao ainda precisa ser medido.
 - O custo real de airtime depende do transporte MeshCore e nao do UDP local.
 - Nenhuma configuracao RS deve ser chamada de recomendada para producao antes

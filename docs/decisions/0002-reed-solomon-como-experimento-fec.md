@@ -1,6 +1,6 @@
 # ADR 0002: Reed-Solomon como experimento de FEC
 
-- Status: implementado como experimento standalone; integracao nao aprovada
+- Status: implementado como experimento standalone; integracao posterior registrada no ADR 0005
 - Revisao: SDD 0.2.0-draft
 - Implementacao de referencia: software 0.1.0, protocolo 1
 
@@ -61,6 +61,7 @@ as metricas definidas em [`docs/error-control.md`](../error-control.md).
 Existe um modulo de contrato abstrato FEC em `src/meshmedia_lab/fec/`.
 A Issue #20 implementa o encoder e o decoder standalone em
 `src/meshmedia_lab/fec/reed_solomon.py`, com testes unitarios e sem
-dependencias externas. A implementacao nao cria campo `FEC_PRESENT`,
-alteracao no descritor ou integracao com o protocolo. Qualquer resultado de
-transporte ou de radio continua fora do escopo desta decisao.
+dependencias externas. Esta ADR nao definiu a integracao de transporte; a
+extensao opt-in posterior esta registrada em
+[`0005-fec-pipeline-extension.md`](0005-fec-pipeline-extension.md). Qualquer
+resultado de radio continua fora do escopo desta decisao.

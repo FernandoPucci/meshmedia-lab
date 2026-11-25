@@ -27,6 +27,13 @@ from .reed_solomon import (
     ReedSolomonDecoder,
     ReedSolomonEncoder,
 )
+from .transmission import (
+    FecTransmission,
+    FecTransmissionBlock,
+    block_metadata_for_index,
+    fec_block_count,
+    prepare_fec_transmission,
+)
 
 __all__ = [
     "GF256_GENERATOR",
@@ -44,10 +51,15 @@ __all__ = [
     "FecError",
     "FecInputError",
     "FecSymbol",
+    "FecTransmission",
+    "FecTransmissionBlock",
     "IncompleteBlockPolicy",
     "PaddingPolicy",
     "ReedSolomonDecoder",
     "ReedSolomonEncoder",
+    "block_metadata_for_index",
+    "fec_block_count",
+    "prepare_fec_transmission",
     "prepare_source_symbols",
     "validate_decode_inputs",
     "validate_encoded_block",

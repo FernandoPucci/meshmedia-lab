@@ -6,6 +6,25 @@ do software ou do protocolo.
 
 ## [Unreleased]
 
+### FEC no pipeline TX/RX — Issues #21 e #22
+
+- Adicionada a preparacao de transmissoes FEC em blocos, usando exclusivamente
+  `FecConfig`, `FecEncoder`, `EncodedBlock` e `FecBlockMetadata` existentes.
+- Adicionados frames `FC` autoidentificados e `FLAG_FEC=0x08` como extensao
+  opt-in. O header MM1 v1 de 19 bytes, o CRC-16/CCITT-FALSE, o descritor v1 e
+  o caminho legado permanecem inalterados.
+- O TX agora pode gerar simbolos de origem e reparo explicitamente com
+  Reed-Solomon, incluindo bloco, simbolo, configuracao, comprimento original e
+  padding.
+- O RX agrupa simbolos, transforma perdas/rejeicoes de CRC em erasures e
+  recupera os bytes antes de decodificar grayscale ou RGB332.
+- Adicionados testes unitarios de particionamento, padding, frames e
+  reassemblagem, alem de testes de pipeline e TX/RX UDP com perdas para os dois
+  codecs.
+- A configuracao FEC continua experimental; nenhuma configuracao RS foi
+  escolhida como recomendacao de producao e retransmissao seletiva permanece
+  fora do escopo.
+
 ### Reed-Solomon — Issue #20
 
 - Implementado `ReedSolomonEncoder` e `ReedSolomonDecoder` como algoritmo FEC

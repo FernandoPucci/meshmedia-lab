@@ -2,7 +2,7 @@
 
 - **Objetivo:** orientar o OpenCode na evolucao incremental do MM1 a partir das decisoes de arquitetura acordadas em 2026-11-24.
 - **Abordagem:** Specification-Driven Development (SDD).
-- **Estado deste documento:** requisitos e plano de trabalho; nao representa implementacao concluida.
+- **Estado deste documento:** requisitos e plano de trabalho; as entregas das Issues #19, #20, #21 e #22 estao registradas na matriz de implementacao.
 - **Baseline conhecida:** protocolo binario MM1 v1; implementacao Python 0.1.0; SDD 0.5.0-draft.
 - **Limite inicial de imagem:** 128 x 128 pixels.
 
@@ -47,7 +47,9 @@ Usar flag `0x04`, marcador `TD`, corpo v1 big-endian fixo de 16 bytes,
 encoded_length uint32 obrigatorio e comparacao estrita de metadados duplicados.
 O modo legado e seu default permanecem inalterados. A proposta anterior da
 Etapa A de nao repetir metadados e substituida por essa decisao rastreavel.
-FEC continua sem implementacao; futuras alteracoes exigem nova revisao.
+FEC continua sem campos no corpo do descritor; as Issues #21/#22 adicionaram
+uma extensao opt-in separada com `FLAG_FEC=0x08` e frames `FC`. Futuras
+alteracoes do descritor exigem nova revisao.
 Os itens a seguir registram a ordem original da Etapa A, ja materializada
 no contrato `docs/transmission-descriptor.md`:
 
@@ -136,10 +138,11 @@ O protocolo e os codecs nao devem depender de UDP ou MeshCore.
 
 1. Extrair/organizar CRC e FEC sem quebrar a implementacao CRC atual.
 2. Definir contratos abstratos para encoder/decoder FEC.
-3. Implementar Reed-Solomon como primeiro plugin/implementacao experimental somente apos fechar os parametros e a representacao de blocos.
-4. Cobrir casos de ausencia, corrupcao, erasures, erros desconhecidos, preenchimento e blocos incompletos.
-5. Comparar CRC-only, CRC + RS e RS-only em ambiente controlado. O modo RS-only e experimental e nao altera o formato v1.
-6. Nao selecionar uma configuracao vencedora sem resultados reproduziveis.
+3. Implementar Reed-Solomon como primeiro plugin/implementacao experimental.
+4. Integrar preparacao TX, frames opt-in e recuperacao RX nas Issues #21/#22.
+5. Cobrir casos de ausencia, corrupcao, erasures, erros desconhecidos, preenchimento e blocos incompletos.
+6. Comparar CRC-only, CRC + RS e RS-only em ambiente controlado. O modo RS-only e experimental e nao altera o caminho legado.
+7. Nao selecionar uma configuracao vencedora sem resultados reproduziveis.
 
 **Criterio de aceite:** testes unitarios do algoritmo, testes de integracao do pipeline e vetores conhecidos; parametros completos registrados em cada execucao.
 
@@ -230,9 +233,9 @@ MM1.
 MeshCore da Etapa E (#30–#35). Não iniciar a interface como substituto dessas
 validações.
 
-**Estado:** backlog arquitetural; não implementar nesta rodada. FEC,
-Reed-Solomon, ACK/NACK e transmissão progressiva só podem aparecer como
-opções quando estiverem efetivamente implementados.
+**Estado:** backlog arquitetural; não implementar nesta rodada. FEC e
+Reed-Solomon ja aparecem como opcoes porque foram implementados nas Issues
+#20–#22. ACK/NACK e transmissão progressiva continuam indisponiveis.
 
 ---
 

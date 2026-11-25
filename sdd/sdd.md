@@ -5,7 +5,7 @@
 - **Abordagem:** Specification-Driven Development (SDD)
 - **Objetivo:** Desenvolver um protocolo eficiente para transmissão de imagens e, futuramente, áudio através de redes MeshCore/LoRa.
 - **Nome do protocolo:** MM1 (MeshMedia v1)
-- **Revisão do SDD:** 0.6.0-draft
+- **Revisão do SDD:** 0.7.0-draft
 - **Versão da implementação de referência:** 0.1.0
 - **Versão do protocolo binário:** 1
 - **Conformidade:** Parcial
@@ -27,7 +27,7 @@ O projeto usa tres identificadores independentes:
 |---|---|
 | Versao do software | Evolucao do pacote Python e de sua API. Atualmente `0.1.0`. |
 | Versao do protocolo | Compatibilidade do formato binario transportado. Atualmente `1`. |
-| Revisao do SDD | Evolucao dos requisitos, decisoes e propostas. Atualmente `0.5.0-draft`. |
+| Revisao do SDD | Evolucao dos requisitos, decisoes e propostas. Atualmente `0.7.0-draft`. |
 
 Uma alteracao editorial nao altera a versao do software nem a versao do
 protocolo. Uma alteracao incompativel no formato ou no significado dos pacotes
@@ -543,12 +543,12 @@ Isso permite detectar corrupção sem precisar invalidar necessariamente toda a 
 
 # 9. Recuperação de erros
 
-**Status atual: contrato abstrato FEC e Reed-Solomon standalone implementados;
-integracao FEC no protocolo e retransmissao ainda nao implementadas.**
+**Status atual: contrato abstrato FEC, Reed-Solomon e integracao FEC opt-in
+TX/RX implementados; retransmissao ainda nao implementada.**
 
-O MVP atual descarta pacotes invalidos e exige todos os fragmentos para concluir
-a imagem. As subsecoes seguintes descrevem alternativas de projeto e nao devem
-ser lidas como funcionalidades disponiveis.
+O caminho legado do MVP descarta pacotes invalidos e exige todos os fragmentos
+para concluir a imagem. O modo FEC experimental opt-in pode recuperar erasures
+dentro dos limites do algoritmo e exige RX atualizado.
 
 Existem diferentes estratégias para lidar com perda ou corrupção de pacotes.
 
@@ -615,7 +615,8 @@ Desvantagens:
 
 ## 9.3 FEC — Forward Error Correction
 
-**Status atual: PROPOSTO; sem implementacao no protocolo versao 1.**
+**Status atual: implementado como extensao experimental opt-in; nao altera o
+header MM1 v1, o CRC ou o caminho legado.**
 
 FEC significa Forward Error Correction.
 
@@ -642,8 +643,8 @@ Dependendo do algoritmo utilizado, alguns dados poderão ser recuperados mesmo q
 
 # 10. Reed-Solomon
 
-**Status atual: EXPERIMENTO STANDALONE IMPLEMENTADO; integracao no protocolo
-versao 1 ainda nao existe.**
+**Status atual: experimento standalone e integracao opt-in implementados; nao ha
+configuracao FEC no corpo do Transmission Descriptor v1.**
 
 Uma tecnica de FEC implementada para avaliacao isolada e Reed-Solomon.
 
@@ -1198,8 +1199,8 @@ O protocolo poderá possuir:
 
 No MM1 v1 implementado, `IMAGE`, fragmentacao, flags de primeiro/ultimo
 fragmento, extensao inline opcional (ADR 0004) e CRC estao no caminho funcional.
-FEC, ACK/NACK e retransmissao sao
-propostas ou planos futuros.
+FEC tambem possui um modo opt-in experimental com `FLAG_FEC=0x08`; ACK/NACK e
+retransmissao continuam propostas ou planos futuros.
 
 # 19. Cabeçalho MM1 v1 e descritor inline opcional
 
@@ -1239,10 +1240,12 @@ As flags atualmente implementadas sao:
 0x01 = FIRST_FRAGMENT
 0x02 = LAST_FRAGMENT
 0x04 = INLINE_DESCRIPTOR (extensao opt-in, ADR 0004)
+0x08 = FEC (extensao opt-in experimental, Issues #21/#22)
 ```
 
-`FEC_PRESENT` e `ACK_REQUIRED` permanecem conceitos futuros e nao existem no
-wire format v1 atual.
+`FLAG_FEC` nao altera o tamanho do header: ele seleciona um frame `FC` no
+payload, que repete a configuracao, o bloco, o simbolo e os metadados de
+comprimento. O modo FEC exige RX atualizado. `ACK_REQUIRED` permanece futuro.
 
 # 20. Fases de desenvolvimento
 
@@ -1323,7 +1326,7 @@ Simular:
 
 Avaliar a reconstrução da imagem.
 
-## Fase 5 — Reed-Solomon (IMPLEMENTADA COMO EXPERIMENTO STANDALONE)
+## Fase 5 — Reed-Solomon (IMPLEMENTADA)
 
 O contrato abstrato de FEC da Issue #19 esta implementado em
 `src/meshmedia_lab/fec/`, com testes unitarios independentes de algoritmo.
@@ -1331,9 +1334,9 @@ A Issue #20 implementa `ReedSolomonEncoder` e `ReedSolomonDecoder` em
 `src/meshmedia_lab/fec/reed_solomon.py`, com testes de vetores, erasures,
 erros desconhecidos, padding e limites matematicos.
 
-Essa implementacao permanece isolada do protocolo MM1, do CRC e dos
-transportes. O executor geral de benchmarks, a identificacao de blocos no
-cabecalho e a integracao no pipeline continuam pendentes.
+O algoritmo permanece separado do protocolo MM1, do CRC e dos transportes. A
+identificacao de blocos e simbolos fica na camada de frames FEC, e nao dentro
+do encoder Reed-Solomon.
 
 Experimentar diferentes configurações.
 
@@ -1356,6 +1359,24 @@ Medir:
 - Tempo.
 - Qualidade.
 - Eficiência.
+
+## Fase 5.1 — Pipeline FEC TX/RX (IMPLEMENTADA COMO EXTENSAO OPT-IN)
+
+As Issues #21 e #22 implementam:
+
+- particionamento dos bytes de grayscale ou RGB332 em blocos FEC;
+- uso do `FecEncoder`/`FecDecoder` abstrato;
+- producao de simbolos de origem e reparo com ordem e indices;
+- frames `FC` dentro do payload MM1 v1, selecionados por `FLAG_FEC=0x08`;
+- identificacao de transmissao, bloco e simbolo;
+- preservacao de `encoded_length`, `original_length` e `padding_length`;
+- tratamento de pacotes perdidos ou rejeitados pelo CRC como erasures;
+- recuperacao local por memoria, UDP e simulacao de canal;
+- falha explicita quando algum bloco nao possui simbolos suficientes.
+
+O modo sem FEC continua sendo o default e seus vetores binarios permanecem
+inalterados. A extensao nao e uma integracao MeshCore nem uma recomendacao de
+parametros para producao.
 
 ## Fase 6 — Retransmissão seletiva (PLANEJADA; NAO INICIADA)
 
@@ -1638,8 +1659,9 @@ Precisaremos investigar:
 - Qual e o custo do CRC-16/CCITT-FALSE nas diferentes cargas?
 - Reed-Solomon vale o overhead?
 - Qual proporção de FEC?
-- Como uma revisao futura do descritor representara blocos/simbolos FEC sem
-  modificar silenciosamente o contrato v1 do descritor?
+- Como futuras revisoes do descritor poderao representar blocos/simbolos FEC
+  sem modificar silenciosamente o contrato v1 do descritor? A implementacao
+  atual usa frames `FC` separados e nao altera o descritor v1.
 - Quais politicas adicionais de multiplexacao e timeout absoluto serao
   necessarias alem da fila limitada e timeout de inatividade do RX local?
 - Retransmissão seletiva é melhor?
@@ -1673,9 +1695,10 @@ passo e revisar a entrega do descritor, seus testes negativos e a compatibilidad
 legada antes de encerrar #17, #18 e o agrupador #5. A matriz diferencia a
 implementacao na branch da integracao revisada ao master.
 
-Reed-Solomon standalone foi implementado na Issue #20. Nao iniciar
-automaticamente sua integracao no MM1 nem MeshCore. RGB332 permanece
-selecionavel em ambos os modos conforme a secao 4.2.1, sem obrigar descritor.
+Reed-Solomon standalone e o pipeline FEC local foram implementados nas Issues
+#20, #21 e #22. A extensao usa MM1 v1 somente em modo opt-in e nao autoriza
+automaticamente a integracao MeshCore. RGB332 permanece selecionavel em ambos
+os modos conforme a secao 4.2.1, sem obrigar descritor.
 
 O objetivo de longo prazo continua sendo criar e validar o projeto de
 laboratorio independente do MeshCore.
@@ -1849,9 +1872,8 @@ substituir o material criptográfico do MeshCore.
   incompatível no protocolo.
 - RGB332 já está implementado no pipeline local, com limite atual de 64 x 64.
   A interface deve refletir os codecs e limites efetivamente disponíveis.
-  A integracao FEC/Reed-Solomon no pipeline, ACK/NACK e transmissão progressiva
-  continuam indisponíveis até suas respectivas implementações e validações;
-  somente o algoritmo standalone RS foi implementado.
+  A integracao FEC/Reed-Solomon no pipeline local esta implementada como
+  extensao opt-in; ACK/NACK e transmissão progressiva continuam indisponíveis.
 - Não customizar inicialmente firmware MeshCore nem o aplicativo oficial. Se
   as interfaces existentes não permitirem o fluxo necessário, documentar a
   limitação e apresentar alternativas antes de alterar firmware.

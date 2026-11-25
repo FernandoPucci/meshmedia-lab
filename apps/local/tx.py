@@ -7,11 +7,26 @@ import logging
 
 from meshmedia_lab.codec.encoder import ImageEncoder
 from meshmedia_lab.codec.rgb332 import Rgb332Encoder
+from meshmedia_lab.fec import (
+    FecConfig,
+    FecConfigurationError,
+    IncompleteBlockPolicy,
+    PaddingPolicy,
+    ReedSolomonEncoder,
+    prepare_fec_transmission,
+)
 from meshmedia_lab.protocol.descriptor import TransmissionDescriptor
+from meshmedia_lab.protocol.fec import FecPacketizer
 from meshmedia_lab.protocol.fragmenter import Fragmenter
 from meshmedia_lab.transport.udp import UdpSender
 
-from .common import PacketStats, configure_logging, log_packet, log_summary, parse_resolution
+from .common import (
+    PacketStats,
+    configure_logging,
+    log_packet,
+    log_summary,
+    parse_resolution,
+)
 from .image_io import load_grayscale_pixels, load_rgb_pixels
 
 LOGGER = logging.getLogger("meshmedia.local.tx")
@@ -50,6 +65,46 @@ def build_parser() -> argparse.ArgumentParser:
         help="legacy default; descriptor requires an updated receiver",
     )
     parser.add_argument(
+        "--fec-algorithm",
+        choices=("none", "reed_solomon"),
+        default="none",
+        help="optional FEC algorithm; none is the default",
+    )
+    parser.add_argument(
+        "--fec-data-symbols",
+        type=int,
+        help="number of source symbols per FEC block",
+    )
+    parser.add_argument(
+        "--fec-repair-symbols",
+        type=int,
+        help="number of repair symbols per FEC block",
+    )
+    parser.add_argument(
+        "--fec-symbol-size",
+        type=int,
+        default=1,
+        help="FEC symbol size in bytes",
+    )
+    parser.add_argument(
+        "--fec-interleaving-depth",
+        type=int,
+        default=0,
+        help="FEC interleaving depth; Reed-Solomon currently requires zero",
+    )
+    parser.add_argument(
+        "--fec-padding-policy",
+        choices=("reject", "zero_pad"),
+        default="zero_pad",
+        help="policy for padding the final FEC block",
+    )
+    parser.add_argument(
+        "--fec-incomplete-block-policy",
+        choices=("reject", "pad_to_k"),
+        default="pad_to_k",
+        help="policy for a final block with fewer than k symbols",
+    )
+    parser.add_argument(
         "--log-level",
         default="INFO",
         choices=("DEBUG", "INFO", "WARNING", "ERROR"),
@@ -62,6 +117,31 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     configure_logging(args.log_level, args.log_file)
     width, height = parse_resolution(args.resolution)
+
+    fec_config = None
+    fec_encoder = None
+    if args.fec_algorithm != "none":
+        if args.fec_data_symbols is None or args.fec_repair_symbols is None:
+            raise SystemExit(
+                "--fec-data-symbols and --fec-repair-symbols are required "
+                "when FEC is enabled"
+            )
+        try:
+            fec_config = FecConfig(
+                algorithm_id=args.fec_algorithm,
+                symbol_size=args.fec_symbol_size,
+                data_symbols=args.fec_data_symbols,
+                repair_symbols=args.fec_repair_symbols,
+                block_symbols=args.fec_data_symbols + args.fec_repair_symbols,
+                interleaving_depth=args.fec_interleaving_depth,
+                padding_policy=PaddingPolicy(args.fec_padding_policy),
+                incomplete_block_policy=IncompleteBlockPolicy(
+                    args.fec_incomplete_block_policy
+                ),
+            )
+            fec_encoder = ReedSolomonEncoder()
+        except FecConfigurationError as error:
+            raise SystemExit(f"invalid FEC configuration: {error}") from error
 
     if args.codec == "grayscale":
         pixels = load_grayscale_pixels(args.image)
@@ -87,22 +167,49 @@ def main(argv: list[str] | None = None) -> int:
         if args.transmission_mode == "descriptor"
         else None
     )
-    packets = Fragmenter(max_payload_size=args.payload).fragment(
-        encoded.data,
-        image_id=args.image_id,
-        metadata=encoded.metadata,
-        descriptor=descriptor,
-    )
+    fragmenter = Fragmenter(max_payload_size=args.payload)
+    fec_transmission = None
+    if fec_config is None:
+        packets = fragmenter.fragment(
+            encoded.data,
+            image_id=args.image_id,
+            metadata=encoded.metadata,
+            descriptor=descriptor,
+        )
+    else:
+        if fec_encoder is None:
+            raise SystemExit("FEC encoder was not initialized")
+        fec_transmission = prepare_fec_transmission(
+            encoded.data,
+            fec_config,
+            fec_encoder,
+        )
+        packets = FecPacketizer(
+            max_payload_size=args.payload,
+        ).packetize(
+            fec_transmission,
+            image_id=args.image_id,
+            metadata=encoded.metadata,
+            descriptor=descriptor,
+        )
     LOGGER.info(
         "prepared image_id=%d codec=%s encoded_bytes=%d messages=%d "
-        "payload_limit=%d mode=%s",
+        "payload_limit=%d mode=%s fec_algorithm=%s",
         args.image_id,
         args.codec,
         len(encoded.data),
         len(packets),
         args.payload,
         args.transmission_mode,
+        args.fec_algorithm,
     )
+    if fec_transmission is not None:
+        LOGGER.info(
+            "prepared FEC blocks=%d source_symbols=%d repair_symbols=%d",
+            fec_transmission.total_blocks,
+            fec_transmission.total_blocks * fec_config.data_symbols,
+            fec_transmission.repair_symbol_count,
+        )
 
     stats = PacketStats()
     with UdpSender(args.host, args.port) as sender:
