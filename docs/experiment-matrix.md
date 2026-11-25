@@ -3,10 +3,10 @@
 Este documento define como comparar codecs e controle de erros sem confundir
 medicoes do laboratorio local com resultados de radio real.
 
-**Estado:** matriz proposta; o contrato abstrato FEC da Issue #19 foi
-implementado, mas nenhum algoritmo FEC nem executor geral de benchmarks foi
-implementado. O executor específico do experimento RGB332 não substitui esse
-framework geral.
+**Estado:** matriz proposta; o contrato abstrato FEC da Issue #19 e o algoritmo
+standalone Reed-Solomon da Issue #20 foram implementados, mas nenhum executor
+geral de benchmarks ou integracao FEC/MM1 foi implementado. O executor
+específico do experimento RGB332 não substitui esse framework geral.
 
 ## 1. Objetivo
 
@@ -130,9 +130,10 @@ comparacao.
 | R01 | RS-only | 10% | 0% | harness controlado | Futuro |
 | R02 | RS-only | 0% | erros conhecidos | harness controlado | Futuro |
 
-As linhas F e R nao representam funcionalidades atuais. Elas documentam o
-experimento que somente pode ser executado depois da especificacao dos blocos e
-da implementacao correspondente.
+As linhas F e R nao representam integracao do protocolo ou funcionalidades de
+transporte. Elas documentam experimentos que ainda dependem de um executor
+geral, da especificacao dos blocos no wire format e do simulador correspondente;
+os testes unitarios da Issue #20 validam somente o algoritmo standalone.
 
 ## 6. Variacao de codec e dimensao
 

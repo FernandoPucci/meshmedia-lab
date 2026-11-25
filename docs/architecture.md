@@ -27,6 +27,7 @@ codec.
 | Channel Simulator | `src/meshmedia_lab/simulation/channel.py` |
 | Pipeline da aplicacao | `src/meshmedia_lab/application/pipeline.py` |
 | UDP local | `src/meshmedia_lab/transport/udp.py` |
+| Reed-Solomon standalone | `src/meshmedia_lab/fec/reed_solomon.py` |
 | Aplicacao TX | `apps/local/tx.py` |
 | Aplicacao RX | `apps/local/rx.py` |
 | Integracao Pillow | `apps/local/image_io.py` |
@@ -158,8 +159,9 @@ flowchart LR
 
 O contrato abstrato de FEC esta implementado em
 `src/meshmedia_lab/fec/contract.py` e documentado em
-`docs/error-control.md`. Ele nao gera reparos nem integra o pipeline, o
-protocolo ou o transporte. Reed-Solomon continua sendo candidato experimental.
+`docs/error-control.md`. A implementacao standalone de Reed-Solomon em
+`src/meshmedia_lab/fec/reed_solomon.py` gera simbolos de reparo em memoria,
+mas ainda nao integra o pipeline, o protocolo ou o transporte.
 
 ## Execucao
 

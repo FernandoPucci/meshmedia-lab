@@ -5,7 +5,7 @@
 - **Abordagem:** Specification-Driven Development (SDD)
 - **Objetivo:** Desenvolver um protocolo eficiente para transmissão de imagens e, futuramente, áudio através de redes MeshCore/LoRa.
 - **Nome do protocolo:** MM1 (MeshMedia v1)
-- **Revisão do SDD:** 0.5.0-draft
+- **Revisão do SDD:** 0.6.0-draft
 - **Versão da implementação de referência:** 0.1.0
 - **Versão do protocolo binário:** 1
 - **Conformidade:** Parcial
@@ -543,8 +543,8 @@ Isso permite detectar corrupção sem precisar invalidar necessariamente toda a 
 
 # 9. Recuperação de erros
 
-**Status atual: contrato abstrato FEC implementado; algoritmos FEC e
-retransmissao ainda nao implementados.**
+**Status atual: contrato abstrato FEC e Reed-Solomon standalone implementados;
+integracao FEC no protocolo e retransmissao ainda nao implementadas.**
 
 O MVP atual descarta pacotes invalidos e exige todos os fragmentos para concluir
 a imagem. As subsecoes seguintes descrevem alternativas de projeto e nao devem
@@ -642,9 +642,10 @@ Dependendo do algoritmo utilizado, alguns dados poderão ser recuperados mesmo q
 
 # 10. Reed-Solomon
 
-**Status atual: PROPOSTO para experimento; encoder e decoder ainda nao existem.**
+**Status atual: EXPERIMENTO STANDALONE IMPLEMENTADO; integracao no protocolo
+versao 1 ainda nao existe.**
 
-Uma técnica de FEC que merece investigação é Reed-Solomon.
+Uma tecnica de FEC implementada para avaliacao isolada e Reed-Solomon.
 
 Reed-Solomon é utilizado em diversos sistemas de armazenamento e comunicação.
 
@@ -1322,14 +1323,17 @@ Simular:
 
 Avaliar a reconstrução da imagem.
 
-## Fase 5 — Reed-Solomon (PLANEJADA; NAO INICIADA)
+## Fase 5 — Reed-Solomon (IMPLEMENTADA COMO EXPERIMENTO STANDALONE)
 
 O contrato abstrato de FEC da Issue #19 esta implementado em
 `src/meshmedia_lab/fec/`, com testes unitarios independentes de algoritmo.
-Esta fase continua reservada para a implementacao experimental de
-Reed-Solomon; ela nao foi iniciada.
+A Issue #20 implementa `ReedSolomonEncoder` e `ReedSolomonDecoder` em
+`src/meshmedia_lab/fec/reed_solomon.py`, com testes de vetores, erasures,
+erros desconhecidos, padding e limites matematicos.
 
-Implementar um algoritmo FEC concreto.
+Essa implementacao permanece isolada do protocolo MM1, do CRC e dos
+transportes. O executor geral de benchmarks, a identificacao de blocos no
+cabecalho e a integracao no pipeline continuam pendentes.
 
 Experimentar diferentes configurações.
 
@@ -1669,7 +1673,8 @@ passo e revisar a entrega do descritor, seus testes negativos e a compatibilidad
 legada antes de encerrar #17, #18 e o agrupador #5. A matriz diferencia a
 implementacao na branch da integracao revisada ao master.
 
-Nao iniciar Reed-Solomon ou MeshCore automaticamente. RGB332 permanece
+Reed-Solomon standalone foi implementado na Issue #20. Nao iniciar
+automaticamente sua integracao no MM1 nem MeshCore. RGB332 permanece
 selecionavel em ambos os modos conforme a secao 4.2.1, sem obrigar descritor.
 
 O objetivo de longo prazo continua sendo criar e validar o projeto de
@@ -1844,8 +1849,9 @@ substituir o material criptográfico do MeshCore.
   incompatível no protocolo.
 - RGB332 já está implementado no pipeline local, com limite atual de 64 x 64.
   A interface deve refletir os codecs e limites efetivamente disponíveis.
-  FEC/Reed-Solomon, ACK/NACK e transmissão progressiva continuam indisponíveis
-  até suas respectivas implementações e validações.
+  A integracao FEC/Reed-Solomon no pipeline, ACK/NACK e transmissão progressiva
+  continuam indisponíveis até suas respectivas implementações e validações;
+  somente o algoritmo standalone RS foi implementado.
 - Não customizar inicialmente firmware MeshCore nem o aplicativo oficial. Se
   as interfaces existentes não permitirem o fluxo necessário, documentar a
   limitação e apresentar alternativas antes de alterar firmware.

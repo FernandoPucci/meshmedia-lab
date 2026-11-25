@@ -1,6 +1,6 @@
 # ADR 0002: Reed-Solomon como experimento de FEC
 
-- Status: proposto, nao implementado
+- Status: implementado como experimento standalone; integracao nao aprovada
 - Revisao: SDD 0.2.0-draft
 - Implementacao de referencia: software 0.1.0, protocolo 1
 
@@ -19,6 +19,20 @@ explicitamente definidos e, inicialmente, avaliados sobre `GF(2^8)`.
 Essas configuracoes nao fazem parte do protocolo versao 1 e nao devem ser
 interpretadas como parametros aprovados para producao.
 
+## Convencao standalone da Issue #20
+
+Para o primeiro experimento concreto, o campo sera `GF(2^8)` com polinomio
+primitivo `0x11D` e elemento gerador `0x02`. Cada simbolo sera um byte e os
+pontos de avaliacao serao `alpha^i`, com `i` entre `0` e `n-1`. Os simbolos de
+origem ocupam as posicoes `0..k-1`; os simbolos de reparo ocupam
+`k..n-1`, gerados por interpolacao sistematica de um polinomio de grau menor
+que `k`.
+
+O experimento aceitara `n <= 255`, `symbol_size=1` e
+`interleaving_depth=0`. A implementacao sera independente do MM1, do CRC e
+dos transportes, usara somente a biblioteca padrao e preservara as politicas
+de padding e blocos incompletos do contrato FEC.
+
 ## Justificativa
 
 - Reed-Solomon e adequado para erasures quando a posicao do simbolo ausente e
@@ -28,9 +42,8 @@ interpretadas como parametros aprovados para producao.
 - O RFC 5510 oferece terminologia e esquemas de referencia para transporte por
   pacotes.
 
-## O que precisa ser decidido
+## O que permanece fora desta Issue
 
-- Se um simbolo sera um byte, um vetor de payload ou um fragmento inteiro.
 - Como o bloco FEC sera identificado no cabecalho.
 - Como simbolos de reparo serao identificados e reassemblados.
 - Se pacotes invalidos pelo CRC serao tratados como erasures.
@@ -45,7 +58,9 @@ as metricas definidas em [`docs/error-control.md`](../error-control.md).
 
 ## Consequencias atuais
 
-Existe um modulo de contrato abstrato FEC em
-`src/meshmedia_lab/fec/`, mas nao existe campo `FEC_PRESENT`, encoder RS ou
-decoder RS no codigo. Qualquer diagrama que mostre Reed-Solomon deve ser
-marcado como arquitetura futura ou experimento.
+Existe um modulo de contrato abstrato FEC em `src/meshmedia_lab/fec/`.
+A Issue #20 implementa o encoder e o decoder standalone em
+`src/meshmedia_lab/fec/reed_solomon.py`, com testes unitarios e sem
+dependencias externas. A implementacao nao cria campo `FEC_PRESENT`,
+alteracao no descritor ou integracao com o protocolo. Qualquer resultado de
+transporte ou de radio continua fora do escopo desta decisao.

@@ -122,7 +122,9 @@ alternativas `GRP_DATA`/`RAW_CUSTOM` estao em
 - Nao e um substituto do MeshCore nem uma implementacao de radio.
 - Nao e apenas um codec de imagem.
 - Nao promete transmitir fotografias convencionais com qualidade original.
-- Nao considera FEC, Reed-Solomon ou retransmissao como funcionalidades prontas.
+- Nao considera a integracao FEC no protocolo, nem retransmissao, como
+  funcionalidades prontas. Reed-Solomon existe somente como algoritmo
+  standalone experimental.
 
 ### O problema de engenharia
 
@@ -159,11 +161,12 @@ O descritor inline opcional v1 usa flag `0x04`, marcador `TD` e prefixo de 19
 bytes somente no primeiro payload. Exige RX atualizado; nao ha negociacao
 automatica. Cabeçalho MM1 de 19 bytes e CRC permanecem inalterados.
 
-O contrato abstrato de FEC foi materializado para testes independentes, mas
-ainda nao estao implementados FEC funcional, Reed-Solomon, ACK/NACK,
-retransmissao seletiva, transmissao progressiva ou um adaptador MeshCore.
-Essas tecnicas aparecem no SDD como propostas e experimentos, nao como
-capacidades de transporte existentes.
+O contrato abstrato de FEC foi materializado para testes independentes e
+Reed-Solomon foi implementado como algoritmo standalone experimental. Ainda
+nao estao implementados a integracao FEC no pipeline, ACK/NACK, retransmissao
+seletiva, transmissao progressiva ou um adaptador MeshCore. Essas integracoes
+serao tratadas em atividades posteriores, nao como capacidades de transporte
+existentes.
 
 O `1` de MM1 identifica a primeira versao do protocolo no cabecalho. Ele nao e a
 versao do pacote Python: a implementacao de referencia atualmente e `0.1.0`.
@@ -204,7 +207,7 @@ reconstruida sem alterar o nucleo do codec.
 ├── src/meshmedia_lab/
 │   ├── application/         # Casos de uso e pipeline
 │   ├── codec/               # Encoder e decoder de imagem
-│   ├── fec/                 # Contrato abstrato de controle de erros
+│   ├── fec/                 # Contrato e implementacoes FEC standalone
 │   ├── protocol/            # Pacotes, CRC, fragmentacao e reassemblagem
 │   ├── simulation/          # Simulacao de canal
 │   └── transport/           # Adaptadores, transmissor e receptor
@@ -500,7 +503,8 @@ PY
 ## Limitacoes atuais
 
 - Nao ha comunicacao real com MeshCore.
-- FEC, retransmissao e RLE ainda nao estao implementados.
+- A integracao FEC, retransmissao e RLE ainda nao estao implementadas; o
+  algoritmo Reed-Solomon standalone nao participa do pipeline local.
 - UDP local nao representa ainda perdas ou latencia de radio por padrao.
 - A simulacao de perda e corrupcao permanece disponivel no componente de canal.
 - O visualizador depende de um ambiente grafico; use `--output` em ambientes sem GUI.

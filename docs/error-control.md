@@ -7,9 +7,9 @@ proposta experimental.
 | Item | Estado atual |
 |---|---|
 | CRC-16/CCITT-FALSE | Implementado por pacote |
-| Contrato abstrato FEC | Implementado; sem algoritmo concreto |
-| FEC funcional | Nao implementado |
-| Reed-Solomon | Nao implementado; candidato para experimento |
+| Contrato abstrato FEC | Implementado |
+| FEC standalone | Reed-Solomon implementado para experimentos isolados |
+| Integracao FEC no MM1 | Nao implementada |
 | Retransmissao seletiva | Nao implementada |
 
 O estado completo de conformidade esta em
@@ -109,8 +109,9 @@ de laboratorio entre os dados codificados e a fragmentacao; nao deve obrigar o
 protocolo a conhecer Reed-Solomon.
 
 O contrato abstrato da Issue #19 foi materializado como uma API Python
-independente de algoritmo em `src/meshmedia_lab/fec/`. A camada continua
-separada do protocolo MM1, do CRC, dos codecs e dos transportes.
+independente de algoritmo em `src/meshmedia_lab/fec/`. A Issue #20 adiciona
+uma implementacao standalone de Reed-Solomon sobre esse contrato. A camada
+continua separada do protocolo MM1, do CRC, dos codecs e dos transportes.
 
 Os tipos, validadores e protocolos estao em
 [`src/meshmedia_lab/fec/contract.py`](../src/meshmedia_lab/fec/contract.py),
@@ -225,10 +226,10 @@ flowchart LR
     J --> K[Reassemblagem e decoder de imagem]
 ```
 
-A interface deve permitir Hamming, BCH, Reed-Solomon ou outro algoritmo no
-futuro sem modificar o contrato do codec de imagem. A Issue #19 implementa
-somente o contrato e suas validacoes; nenhum algoritmo concreto ou recuperacao
-FEC funcional foi implementado.
+A interface deve permitir Hamming, BCH, Reed-Solomon ou outro algoritmo sem
+modificar o contrato do codec de imagem. A Issue #19 implementa o contrato e
+suas validacoes; a Issue #20 implementa somente o algoritmo Reed-Solomon
+standalone, sem integracao ou serializacao FEC no protocolo.
 
 ### FEC, retransmissao e CRC
 
@@ -282,6 +283,55 @@ canal de erasure e mostra a separacao entre simbolos de origem, simbolos de
 reparo, tamanho do simbolo e bloco de origem. Esses conceitos sao referencia
 para o experimento, nao uma afirmacao de que o MeshMedia Lab ja implementa o
 RFC.
+
+### 5.1 Definicao tecnica da Issue #20
+
+A primeira implementacao concreta sera um experimento standalone, sem
+integracao com MM1, CRC ou transporte. A convencao matematica e:
+
+| Parametro | Decisao |
+|---|---|
+| Campo finito | `GF(2^8)` |
+| Polinomio primitivo | `x^8 + x^4 + x^3 + x^2 + 1` (`0x11D`) |
+| Elemento gerador | `alpha = 0x02` |
+| Representacao do elemento | Um byte (`0x00..0xFF`) |
+| Tamanho do simbolo | `symbol_size=1` byte |
+| Comprimento maximo | `n <= 255` |
+| Interleaving | Desabilitado (`interleaving_depth=0`) |
+| Identificador | `algorithm_id="reed_solomon"` |
+| Dependencias | Somente a biblioteca padrao Python |
+
+Os pontos de avaliacao sao `x_i = alpha^i`, para `i` entre `0` e `n-1`.
+O encoder interpola um polinomio `P(x)` de grau menor que `k` a partir dos
+simbolos de origem nas posicoes `0..k-1`. Os simbolos de reparo sao as
+avaliacoes de `P(x)` nas posicoes `k..n-1`. Assim, o codigo e sistematico:
+os simbolos de origem permanecem inalterados e os indices identificam
+deterministicamente as posicoes do codeword.
+
+O bloco de origem possui capacidade `k` bytes. Quando permitido por
+`PaddingPolicy.ZERO_PAD` e `IncompleteBlockPolicy.PAD_TO_K`, bytes zero
+completam o bloco; `FecBlockMetadata` preserva o comprimento original e nao e
+serializado nesta Issue. `PaddingPolicy.REJECT` e
+`IncompleteBlockPolicy.REJECT` continuam sendo aplicadas pelo contrato.
+
+O decoder trata todas as posicoes ausentes como erasures e tambem aceita erros
+desconhecidos nas posicoes recebidas. A recuperacao somente e declarada quando
+`2e + s <= n-k`; acima desse limite, ou quando nao existe um codeword valido
+consistente com os simbolos recebidos, o resultado e uma falha sem
+`source_block` parcial. A implementacao concreta rejeita configuracoes com
+`symbol_size` diferente de `1` ou interleaving diferente de zero, em vez de
+atribuir semantica nao documentada a esses campos.
+
+Essa definicao fecha a representacao do experimento da Issue #20, mas nao
+cria perfil de transmissao, campo de cabecalho, flag `FEC_PRESENT` ou
+compatibilidade adicional no protocolo MM1 v1.
+
+O vetor independente fixado para a codificacao e `k=4`, `r=3`, origem
+`01 02 03 04` e codeword completo
+`01 02 03 04 D6 36 E2`. Os tres ultimos bytes sao os simbolos de reparo;
+esse valor e verificado diretamente em
+`tests/unit/test_reed_solomon.py`, sem gerar a expectativa a partir do
+encoder sob teste.
 
 ## 6. Camada candidata para o protocolo
 
@@ -362,7 +412,8 @@ e somente um harness controlado e nao um modo do MM1 v1.
 ## 8. Limites e decisoes em aberto
 
 - O CRC atual detecta corrupcao, mas nao autentica o remetente.
-- O tamanho de um simbolo RS ainda nao foi escolhido.
+- A implementacao standalone usa simbolos de um byte; vetores de simbolos
+  permanecem fora desta primeira variante.
 - Ainda nao foi decidido se o FEC atuara sobre bytes individuais, vetores de
   payload ou fragmentos completos.
 - Ainda nao foi definido como os simbolos de reparo serao identificados no
