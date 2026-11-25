@@ -1,14 +1,14 @@
 # ADR 0006: Harness reproduzivel da Issue #24
 
-- Status: especificado para implementacao
+- Status: implementado experimentalmente
 - Revisao: SDD 0.8.0-draft
 - Implementacao de referencia: software 0.1.0, protocolo MM1 1
 
 ## Contexto
 
 A base do projeto ja possui CRC-16/CCITT-FALSE, Reed-Solomon standalone e
-integracao FEC opt-in no pipeline local. Ainda falta um executor geral que
-compare CRC-only, CRC+RS e RS-only com as mesmas imagens, seeds, cenarios e
+integracao FEC opt-in no pipeline local. Esta decisao define o executor geral
+que compara CRC-only, CRC+RS e RS-only com as mesmas imagens, seeds, cenarios e
 metricas.
 
 O executor precisa medir o custo real do packetizer FEC atual, inclusive o

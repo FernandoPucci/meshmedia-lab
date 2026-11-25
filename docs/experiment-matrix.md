@@ -3,11 +3,10 @@
 Este documento define como comparar codecs e controle de erros sem confundir
 medicoes do laboratorio local com resultados de radio real.
 
-**Estado:** matriz especificada para o executor da Issue #24; o contrato
-abstrato FEC da Issue #19, o algoritmo standalone Reed-Solomon da Issue #20 e
-a integracao local opt-in das Issues #21/#22 foram implementados. O executor
-geral ainda esta em implementacao. O executor específico do experimento RGB332
-não substitui esse framework geral.
+**Estado:** matriz executada pelo executor da Issue #24; o contrato abstrato
+FEC da Issue #19, o algoritmo standalone Reed-Solomon da Issue #20 e a
+integracao local opt-in das Issues #21/#22 foram implementados. O executor
+específico do experimento RGB332 não substitui esse framework geral.
 
 ## 1. Objetivo
 

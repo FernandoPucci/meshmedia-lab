@@ -170,6 +170,197 @@ def _chart_data(
     return labels, values
 
 
+def _display_strategy(strategy_id: str) -> str:
+    if strategy_id == "crc-only":
+        return "CRC-only"
+    parts = strategy_id.split("-")
+    marker = parts.index("rs32")
+    strategy = "CRC+RS" if parts[0] == "crc+rs" else "RS-only"
+    return f"{strategy}(32,{parts[marker + 1]})"
+
+
+def _aggregate_success(
+    records: list[dict[str, Any]],
+    *,
+    include_no_fail: bool,
+) -> dict[str, float]:
+    selected = [
+        record
+        for record in records
+        if include_no_fail or record.get("scenario_id") != "NO-FAIL"
+    ]
+    grouped = _records_by(selected, "strategy_id")
+    return {
+        key[0]: mean(
+            bool(record.get("reconstruction_integral"))
+            for record in group
+        )
+        for key, group in grouped.items()
+    }
+
+
+def _write_final_analysis(
+    reports_directory: Path,
+    records: list[dict[str, Any]],
+) -> None:
+    degraded_success = _aggregate_success(
+        records,
+        include_no_fail=False,
+    )
+    no_fail = [
+        record
+        for record in records
+        if record.get("scenario_id") == "NO-FAIL"
+    ]
+    overheads = {
+        key[0]: _average(group, "overhead_percent")
+        for key, group in _records_by(no_fail, "strategy_id").items()
+    }
+    times = {
+        key[0]: _average(group, "total_time_ns")
+        for key, group in _records_by(no_fail, "strategy_id").items()
+    }
+    wrong_outputs = {
+        key[0]: sum(
+            bool(record.get("reconstruction_available"))
+            and not bool(record.get("reconstruction_integral"))
+            for record in group
+        )
+        for key, group in _records_by(records, "strategy_id").items()
+    }
+    no_output = {
+        key[0]: sum(
+            not bool(record.get("reconstruction_available"))
+            for record in group
+        )
+        for key, group in _records_by(records, "strategy_id").items()
+    }
+
+    strongest_strategy = (
+        max(
+            degraded_success,
+            key=lambda key: degraded_success[key],
+        )
+        if degraded_success
+        else None
+    )
+    lowest_overhead = min(
+        overheads,
+        key=lambda key: overheads[key] if overheads[key] is not None else float("inf"),
+    )
+
+    lines = [
+        "# Issue #24 — análise final",
+        "",
+        "> Resultado de 9.450 execuções em simulação local determinística.",
+        "> Não representa rádio MeshCore, LoRa, airtime ou latência real.",
+        "",
+        "## Resumo quantitativo",
+        "",
+        "| Estratégia | Sucesso degradado | Overhead sem falhas | Tempo total sem falhas |",
+        "|---|---:|---:|---:|",
+    ]
+    for strategy in sorted(degraded_success):
+        overhead = overheads[strategy]
+        duration = times[strategy]
+        lines.append(
+            f"| {_display_strategy(strategy)} | "
+            f"{degraded_success[strategy] * 100:.2f}% | "
+            f"{overhead:.2f}% | {duration / 1_000_000:.2f} ms |"
+        )
+
+    answer_lines = [
+        "",
+        "## Respostas",
+        "",
+        (
+            f"1. **Menor overhead:** {_display_strategy(lowest_overhead)} "
+            f"no caminho MM1 legado, com {overheads[lowest_overhead]:.2f}% "
+            "no cenário sem falhas. O RS-only possui enquadramento diferente "
+            "e não inclui header/CRC MM1."
+        ),
+        "",
+        (
+            (
+                f"2. **Maior recuperação média:** "
+                f"{_display_strategy(strongest_strategy)}, com "
+                f"{degraded_success[strongest_strategy] * 100:.2f}% nos "
+                "cenários degradados."
+            )
+            if strongest_strategy is not None
+            else "2. **Maior recuperação média:** não aplicável; "
+            "esta execução não contém cenários degradados."
+        ),
+        "",
+        (
+            "3. **Mais reparos:** no CRC+RS, a recuperação degradada aumentou "
+            f"de {degraded_success.get('crc+rs-rs32-28-4', 0) * 100:.2f}% "
+            f"para {degraded_success.get('crc+rs-rs32-20-12', 0) * 100:.2f}% "
+            "ao passar de 4 para 12 reparos, ao custo de mais mensagens e "
+            "overhead."
+        ),
+        "",
+        (
+            "4. **Tamanho da imagem:** o grayscale 16 níveis produz 512, "
+            "2.048 e 8.192 bytes em 32x32, 64x64 e 128x128. O número de "
+            "mensagens e blocos cresce proporcionalmente; a distribuição "
+            "por bloco passa a dominar a recuperação."
+        ),
+        "",
+        (
+            "5. **CRC-only:** não recupera perdas. Pacotes corrompidos são "
+            "rejeitados e a imagem fica incompleta quando falta qualquer "
+            "fragmento necessário."
+        ),
+        "",
+        (
+            "6. **CRC+RS:** recuperou integralmente as células em que as "
+            "erasures por bloco permaneceram dentro da capacidade RS. "
+            "RS(32,20) foi a configuração mais tolerante, mas também a mais "
+            "cara."
+        ),
+        "",
+        (
+            "7. **RS-only:** produziu "
+            f"{sum(wrong_outputs.values())} saídas divergentes e "
+            f"{sum(no_output.values())} execuções sem saída entre as "
+            "variantes. Uma saída do decoder não deve ser tratada como "
+            "integridade validada."
+        ),
+        "",
+        (
+            "8. **Custo computacional:** Reed-Solomon aumentou o tempo local "
+            "de preparação/decodificação em relação ao CRC-only. Esses tempos "
+            "são do Python e não representam airtime."
+        ),
+        "",
+        (
+            "9. **Vantagem CRC+RS:** o CRC identifica corrupção antes da "
+            "reassemblagem e transforma o pacote inválido em erasure; o RS "
+            "usa essa informação para recuperar o bloco sem aceitar "
+            "silenciosamente dados corrompidos."
+        ),
+        "",
+        (
+            "10. **Limitações:** payload fixo de 64 bytes, um símbolo FEC por "
+            "mensagem, canal independente por pacote, sem rajadas/jitter, "
+            "sem MeshCore real e sem medição de airtime. O RS-only continua "
+            "exclusivamente experimental."
+        ),
+        "",
+        (
+            "Os detalhes por fixture, resolução, cenário, repetição e seed "
+            "estão em `results/raw/` e `results/summary/`."
+        ),
+        "",
+    ]
+    lines.extend(answer_lines)
+    (reports_directory / "final-analysis.md").write_text(
+        "\n".join(lines),
+        encoding="utf-8",
+    )
+
+
 def write_reports(
     output_directory: Path,
     records: list[dict[str, Any]],
@@ -350,6 +541,7 @@ def write_reports(
         "- `results/raw/results.jsonl`: resultados individuais;",
         "- `results/summary/results.csv`: tabela plana;",
         "- `results/summary/summary.json`: agregações;",
+        "- `reports/final-analysis.md`: respostas e análise final;",
         "- `reports/charts/`: gráficos SVG;",
         "- `reference/` e `results/images/`: imagens lado a lado.",
         "",
@@ -365,4 +557,5 @@ def write_reports(
         "\n".join(markdown_lines),
         encoding="utf-8",
     )
+    _write_final_analysis(reports_directory, records)
     return summary

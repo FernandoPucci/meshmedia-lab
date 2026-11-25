@@ -19,8 +19,9 @@ do software ou do protocolo.
   disponível, incluindo execução de células selecionadas e escala pixelada.
 - Otimizadas operações equivalentes de GF(256) no Reed-Solomon sem alterar
   vetores, limites ou semântica do decoder.
-- Mantida a matriz completa como pendente de execucao; smoke tests e casos
-  direcionados foram validados separadamente.
+- Executada a matriz completa com 9.450 células; o relatório final registra
+  taxa agregada de reconstrução integral de 42,53% na simulação local e
+  separa resultados de CRC-only, CRC+RS e RS-only.
 
 ### FEC no pipeline TX/RX — Issues #21 e #22
 

@@ -63,9 +63,9 @@ que a capacidade existe.
 | Registro RGB332 no MM1 v1 | Issue #38 / Fase 7 | Aprovado sem alterar layout | Implementado | `media.py` (`codec=0x02`, `levels=0`), `packet.py`, testes UDP locais |
 | Limite grayscale de 128 x 128 | Ordem de trabalho / Etapa B | Implementado | Implementado | `media.py`, `codec/encoder.py`, `tests/unit/test_codec.py` e `tests/unit/test_protocol.py` |
 | Limite RGB332 de 64 x 64 | Perfil RGB332 / Etapa B | Implementado | Implementado | `codec/rgb332.py`, `tests/unit/test_rgb332.py` e `tests/integration/test_local_apps.py` |
-| Matriz de experimentos | Etapa A | Proposto | Parcial | `docs/experiment-matrix.md`; executor RGB332 isolado em `benchmarks/rgb332_experiment.py` |
+| Matriz de experimentos | Etapa A / Issue #24 | Executado localmente | Implementado | `experiments/issue-24/reports/final-analysis.md`, 9.450 resultados |
 | Fixtures deterministicas da Issue #24 | Issue #24 | Especificado | Implementado | `benchmarks/issue24/fixtures.py`, testes de seed/paleta e manifest |
-| Executor geral CRC/FEC | Issue #24 / Etapa D | Especificado | Parcial | `benchmarks/issue24/`; smoke tests executados, matriz completa pendente |
+| Executor geral CRC/FEC | Issue #24 / Etapa D | Executado localmente | Implementado experimentalmente | `benchmarks/issue24/`, 9.450 resultados brutos e resumo |
 | Harness RS-only | Issue #24 | Isolado, sem MM1 v1 | Implementado | `benchmarks/issue24/strategies.py`, sem `Packet` ou CRC |
 | Metricas de mensagens e conclusao | Issue #24 | Especificado | Implementado | `benchmarks/issue24/runner.py`, JSON/CSV e testes |
 | Comparacao visual Issue #24 | Issue #24 | Especificado | Implementado | `benchmarks/issue24/viewer.py`, viewer local com nearest-neighbor |
