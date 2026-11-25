@@ -252,50 +252,54 @@ O executor tambem gera as imagens de referencia e resultado, resultados brutos,
 resumos, graficos e um visualizador local com dois paineis de mesma escala.
 
 
-## Aplicação web local — arquitetura-alvo
+## WebApp browser-only — arquitetura-alvo
 
-A aplicação web local é o objetivo de produto de longo prazo registrado na
-[Issue #39](https://github.com/FernandoPucci/meshmedia-lab/issues/39) e na
-seção 29 do SDD. Ela ainda não faz parte da implementação atual.
+A aplicação web é planejada como uma página estática hospedada em GitHub Pages
+(HTTPS). O usuário abre a URL e conecta diretamente o MeshCore Companion por
+BLE, sem instalar software, clonar o repositório, iniciar backend local ou
+executar Docker/Python na máquina.
 
-Cada estação executará uma instância local da aplicação:
+A WebApp deve consumir o codec Python existente em
+src/meshmedia_lab/codec/ **sem alterar ou reescrever sua implementação**.
+A hipótese inicial é executá-lo no navegador com Pyodide/WebAssembly. Essa
+hipótese precisa ser validada por uma prova de conceito; se não for possível
+executar o codec existente sem modificações, a implementação deve parar para
+revisão humana, sem criar um codec paralelo.
 
-- **Frontend web:** upload da imagem, pré-visualização, seleção de dimensões e
-  codec disponível, escolha do canal privado, estimativa, progresso e exibição
-  da imagem recebida.
-- **Serviço local:** processamento da imagem, execução do codec, preparação e
-  estimativa dos pacotes MM1, controle do pipeline e apresentação do estado.
-- **Adaptador serial/MeshCore:** comunicação com uma única Heltec V3 por
-  instância, sem acoplar o protocolo MM1 à API serial.
-- **Núcleo MM1:** codec, fragmentação, integridade e reassemblagem, independente
-  da interface e do transporte.
-
-O TX e o RX serão duas instâncias independentes, possivelmente em computadores
-distintos. O backend local deve gerenciar a serial, evitando depender
-exclusivamente da Web Serial API. A estimativa de mensagens deve ser calculada
-sobre os bytes realmente codificados e os limites reais do transporte, e não
-apenas pela resolução selecionada.
-
-O canal privado e a criptografia devem permanecer sob responsabilidade do
-MeshCore. A aplicação não deve expor chaves em logs ou URLs. A integração
-continua condicionada à validação das interfaces seriais e do adaptador com o
-firmware original; customização de firmware é alternativa posterior, não
-premissa.
+A biblioteca meshcore.js será avaliada para a conexão Web Bluetooth com o
+firmware MeshCore Companion. Sua API real para conexão, notificações e envio de
+dados binários de grupo precisa ser confirmada antes de adotá-la. O firmware
+Bluetooth atual permanece como caminho primário; USB/Web Serial é alternativa
+futura, não requisito.
 
 ```mermaid
 flowchart LR
-    subgraph TX["TX — aplicação local"]
-        UI1["Frontend web"] --> APP1["Serviço local<br/>codec + MM1"]
-        APP1 --> SER1["Serial / MeshCore"]
+    subgraph TX["TX — navegador / HTTPS"]
+        TUI["Web UI"] --> PYTX["Pyodide<br/>codec + MM1 existente"]
+        PYTX --> BLETX["Adaptador Web Bluetooth"]
     end
-    SER1 <--> MESH["Canal privado MeshCore"]
-    subgraph RX["RX — aplicação local"]
-        SER2["Serial / MeshCore"] --> APP2["Serviço local<br/>MM1 + decoder"]
-        APP2 --> UI2["Frontend web<br/>imagem reconstruída"]
+    BLETX <--> MESH["MeshCore Companion<br/>canal privado"]
+    MESH <--> BLERX["Adaptador Web Bluetooth"]
+    subgraph RX["RX — navegador / HTTPS"]
+        BLERX --> PYRX["Pyodide<br/>MM1 + codec existente"]
+        PYRX --> RUI["Web UI<br/>imagem reconstruída"]
     end
-    MESH <--> SER2
 ```
 
-Esta arquitetura-alvo preserva o caminho wire MM1 v1 legado. RGB332 e FEC
-estao implementados no pipeline local como capacidades opt-in; ACK/NACK e
-transmissao progressiva continuam indisponiveis.
+GitHub Pages entrega somente os assets estáticos. Upload, preview, codificação,
+fragmentação, recepção, reassemblagem e decodificação devem ocorrer no
+navegador; imagens e pacotes não são enviados à hospedagem.
+
+A primeira entrega é uma prova de conceito publicada em HTTPS para validar:
+suporte Web Bluetooth no navegador/plataforma, seleção e conexão do Companion,
+leitura de informações básicas, troca de mensagem de teste e execução do codec
+existente no runtime browser. Chrome/Edge desktop são o alvo inicial; suporte
+Linux deve ser testado cedo. A página deve detectar ausência de
+navigator.bluetooth e orientar o usuário. Não declarar suporte a Firefox ou
+Safari para BLE sem adaptador validado.
+
+O adaptador BLE e as integrações de runtime serão componentes novos, externos
+aos módulos de codec existentes. O protocolo MM1 v1 e seus vetores de teste
+permanecem inalterados. A integração real continua sujeita a validação com duas
+placas físicas e aos limites efetivos do transporte MeshCore.
+
