@@ -5,7 +5,7 @@
 - **Abordagem:** Specification-Driven Development (SDD)
 - **Objetivo:** Desenvolver um protocolo eficiente para transmissão de imagens e, futuramente, áudio através de redes MeshCore/LoRa.
 - **Nome do protocolo:** MM1 (MeshMedia v1)
-- **Revisão do SDD:** 0.4.0-draft
+- **Revisão do SDD:** 0.5.0-draft
 - **Versão da implementação de referência:** 0.1.0
 - **Versão do protocolo binário:** 1
 - **Conformidade:** Parcial
@@ -27,7 +27,7 @@ O projeto usa tres identificadores independentes:
 |---|---|
 | Versao do software | Evolucao do pacote Python e de sua API. Atualmente `0.1.0`. |
 | Versao do protocolo | Compatibilidade do formato binario transportado. Atualmente `1`. |
-| Revisao do SDD | Evolucao dos requisitos, decisoes e propostas. Atualmente `0.4.0-draft`. |
+| Revisao do SDD | Evolucao dos requisitos, decisoes e propostas. Atualmente `0.5.0-draft`. |
 
 Uma alteracao editorial nao altera a versao do software nem a versao do
 protocolo. Uma alteracao incompativel no formato ou no significado dos pacotes
@@ -81,11 +81,15 @@ o prefixo como dados da imagem. Essa extensao nao e v2, mas tambem nao deve ser
 apresentada como compatibilidade transparente. Os dois modos devem ser
 identificados e testados separadamente.
 
-O descritor nao repete `image_id`, fragmentacao, dimensoes, codec ou niveis que
-ja estejam no cabecalho v1. Ele existe para parametros adicionais, como
-compressao, tamanho nao derivavel e configuracao FEC. O formato exato do corpo,
-o valor do marcador e a politica de selecao do modo permanecem proposta para
-revisao humana.
+A revisao da Issue #17 e o ADR 0004 substituem a proposta preliminar da Etapa A:
+o descritor agora repete media_type, codec, dimensoes e levels, exigindo igualdade
+com o header. O corpo v1 big-endian de 16 bytes inclui versao, flags reservadas,
+esses metadados, encoded_length uint32 obrigatorio, compression=NONE e comprimento
+de parametros extras zero. O prefixo `54 44 | 10 | corpo` ocupa 19 bytes.
+`INLINE_DESCRIPTOR=0x04` em todos os pacotes seleciona explicitamente o modo,
+sem heuristica sobre dados legados. TX continua legado por default; erros
+estendidos nao fazem fallback. O contrato, limites e vetores normativos estao em
+`docs/transmission-descriptor.md`; o estado do codigo esta na matriz.
 
 ---
 
@@ -440,7 +444,7 @@ Cada fragmento deverá possuir algum tipo de identificação.
 
 O exemplo abaixo e uma representacao conceitual anterior. No MM1 v1 atual,
 `image_id`, `fragment_number` e `total_fragments` sao campos de `Packet`,
-documentados na secao 0.1 e no descritor proposto. O nome historico `image_id`
+documentados na secao 0.1 e no contrato do descritor. O nome historico `image_id`
 corresponde ao identificador da transmissao no caminho atual.
 
 Proposta conceitual:
@@ -1190,11 +1194,12 @@ O protocolo poderá possuir:
 - ACK/NACK.
 - Retransmissão.
 
-No MM1 v1 implementado, somente `IMAGE`, fragmentacao, flags de primeiro/ultimo
-fragmento e CRC estao no caminho funcional. FEC, ACK/NACK e retransmissao sao
+No MM1 v1 implementado, `IMAGE`, fragmentacao, flags de primeiro/ultimo
+fragmento, extensao inline opcional (ADR 0004) e CRC estao no caminho funcional.
+FEC, ACK/NACK e retransmissao sao
 propostas ou planos futuros.
 
-# 19. Cabeçalho MM1 v1 e descritor proposto
+# 19. Cabeçalho MM1 v1 e descritor inline opcional
 
 O desenho abaixo era uma proposta conceitual inicial e nao deve ser usado como
 descricao do wire format atual. O formato implementado e o de 19 bytes
@@ -1213,22 +1218,25 @@ magic(2) | version(1) | media_type(1) | codec(1) | flags(1)
 Todos os inteiros usam ordem de rede. O CRC-16/CCITT-FALSE cobre o cabecalho e
 o payload. O pacote completo tem `P + 21` bytes.
 
-Uma extensao proposta para o primeiro payload e:
+A extensao opt-in para o primeiro payload e:
 
 ```text
 header v1 | marker | descriptor_length | descriptor_body | dados | crc16
 ```
 
-O marcador e o comprimento pertencem ao payload do primeiro fragmento e nao
-alteram `FLAG_FIRST_FRAGMENT`. O descritor e opcional; o modo legado continua
-com dados diretamente no payload. O corpo, o valor do marcador e as regras de
-seleção do modo ainda exigem revisao humana.
+O marcador `54 44` e o comprimento `16` pertencem ao payload do primeiro
+fragmento e nao alteram `FLAG_FIRST_FRAGMENT`. O descritor e opcional e usa
+`INLINE_DESCRIPTOR=0x04` em todos os fragmentos. O modo legado continua default,
+com dados diretamente no payload. O corpo e as validacoes estao na secao 0.1
+e no contrato normativo do descritor. O RX exige igualdade de metadados,
+comprimento exato e todos os fragmentos; dados invalidos nao geram imagem.
 
-As flags atualmente implementadas sao somente:
+As flags atualmente implementadas sao:
 
 ```text
 0x01 = FIRST_FRAGMENT
 0x02 = LAST_FRAGMENT
+0x04 = INLINE_DESCRIPTOR (extensao opt-in, ADR 0004)
 ```
 
 `FEC_PRESENT` e `ACK_REQUIRED` permanecem conceitos futuros e nao existem no
@@ -1624,11 +1632,10 @@ Precisaremos investigar:
 - Qual e o custo do CRC-16/CCITT-FALSE nas diferentes cargas?
 - Reed-Solomon vale o overhead?
 - Qual proporção de FEC?
-- Qual corpo compacto e marcador do descritor devem ser aprovados para a
-  extensao v1?
-- Como selecionar explicitamente entre o modo legado e o modo com descritor?
-- Qual politica de fila e timeout deve ser usada quando o primeiro fragmento
-  chegar depois dos demais?
+- Como uma revisao futura do descritor representara blocos/simbolos FEC sem
+  modificar silenciosamente o contrato v1 do descritor?
+- Quais politicas adicionais de multiplexacao e timeout absoluto serao
+  necessarias alem da fila limitada e timeout de inatividade do RX local?
 - Retransmissão seletiva é melhor?
 - Como evitar que transmissões longas monopolizem o canal?
 - Como o protocolo se comportará em uma rede Mesh com múltiplos saltos?
@@ -1655,20 +1662,18 @@ silenciosamente a escolha do algoritmo.
 
 # 27. Próximo passo
 
-O proximo passo imediato continua sendo revisar humanamente a Etapa A e aprovar
-ou ajustar a extensao de descritor dentro do MM1 v1. Nenhum wire format novo
-deve ser implementado antes dessa revisao. A aprovacao do RGB332 nao depende do
-descritor, pois usa somente os campos existentes do envelope v1.
+O contrato inline da Issue #17 foi revisto apos a PR #42 (ADR 0004). O proximo
+passo e revisar a entrega do descritor, seus testes negativos e a compatibilidade
+legada antes de encerrar #17, #18 e o agrupador #5. A matriz diferencia a
+implementacao na branch da integracao revisada ao master.
 
-Depois da revisao, o trabalho de implementacao deve continuar em incrementos
-separados, sem iniciar Reed-Solomon ou integracao MeshCore automaticamente. O
-codec RGB332 aprovado permanece selecionavel no pipeline local conforme o
-contrato da secao 4.2.1.
+Nao iniciar Reed-Solomon ou MeshCore automaticamente. RGB332 permanece
+selecionavel em ambos os modos conforme a secao 4.2.1, sem obrigar descritor.
 
 O objetivo de longo prazo continua sendo criar e validar o projeto de
 laboratorio independente do MeshCore.
 
-Plano posterior, somente depois da revisao da Etapa A:
+Plano historico do MVP (componentes basicos ja existem; nao reimplementar):
 
 1. Estrutura do projeto.
 2. Image Encoder.

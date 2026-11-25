@@ -1,8 +1,7 @@
 # Perfil de transmissao MM1 v1
 
 Este documento define os parametros explicitos de uma transmissao de imagem e
-separa o formato MM1 v1 atualmente implementado da extensao de descritor inline
-proposta para a Etapa A.
+separa o modo legado MM1 v1 da extensao inline opt-in especificada no ADR 0004.
 
 **Estado:** RGB332 foi aprovado como codec da implementacao de referencia apos
 os testes locais de `32x32` e `64x64`. A integracao usa os campos existentes do
@@ -18,7 +17,7 @@ os valores efetivamente usados em cada transmissao e experimento.
 | MM1 v1 sem descritor | Implementado como baseline local |
 | Grayscale packed | Implementado com codec `0x01` |
 | Limite de 128 x 128 | Implementado no grayscale; nao inclui tiling |
-| Descritor inline no primeiro fragmento | Proposto como extensao v1 |
+| Descritor inline no primeiro fragmento | Implementado localmente como extensao opt-in v1; ADR 0004 |
 | RGB332 | Implementado no codec e no envelope MM1 v1 |
 | FEC parametrizavel | Proposto; nao implementado |
 | Perfis nomeados ou presets | Futuro; fora desta etapa |
@@ -42,11 +41,11 @@ efetivos sao os definidos pelo cabecalho existente em
 | `width` | `uint16` no v1 | Grayscale `1..128`; RGB332 `1..64`, independente de `height` | Implementado com limite por codec |
 | `height` | `uint16` no v1 | Grayscale `1..128`; RGB332 `1..64`, independente de `width` | Implementado com limite por codec |
 | `levels` | `uint16` no v1 | Grayscale: niveis validos; RGB332: `0` (nao aplicavel) | Implementado por codec |
-| `codec_parameters` | bytes versionados | Sem valores implícitos | Proposto |
-| `encoded_length` | `uint16` candidato | Obrigatorio quando nao for derivavel | Proposto |
+| `codec_parameters` | bytes versionados | Comprimento zero no descritor v1; levels parametriza grayscale | Implementado vazio; extras rejeitados |
+| `encoded_length` | `uint32` big-endian no descritor | Obrigatorio e igual ao tamanho derivado do codec | Implementado no modo descriptor |
 | `total_fragments` | `uint16` | Pelo menos 1 | Implementado no v1 |
 | `payload_limit` | `uint8` no v1 | `1..255` local; limite externo pode ser menor | Implementado |
-| `compression_id` | `uint8` candidato | `NONE` no baseline | Proposto |
+| `compression_id` | `uint8` no descritor | Apenas `0=NONE`; outros rejeitados | Implementado NONE |
 | `fec_config` | estrutura explicita | Sem FEC no baseline | Proposto |
 
 `width` e `height` nao formam uma proporcao obrigatoria. Imagens retangulares
@@ -78,12 +77,12 @@ O valor quantizado ocupa `log2(levels)` bits por pixel. O decoder atual
 reconstroi os valores para a escala `0..255` usando os niveis recebidos.
 
 Para este codec, `width`, `height` e `levels` ja estao no cabecalho v1 atual.
-Um descritor inline nao deve repeti-los. `encoded_length` pode ser omitido
-quando o calculo acima for suficiente.
+A revisao da Issue #17 (ADR 0004) substitui a proposta preliminar da Etapa A:
+o descritor os repete e exige igualdade, com `encoded_length` obrigatorio,
+mesmo derivavel. Essa redundancia permite validacao e autodescricao.
 
 O identificador `0x01` e parte do baseline implementado. A lista exata de
-niveis aceitos pelo perfil deve permanecer alinhada com o encoder quando a
-validacao de 128 x 128 for implementada.
+niveis aceitos pelo perfil permanece alinhada ao encoder implementado.
 
 ### 3.2 RGB332
 
@@ -175,10 +174,10 @@ habilita FEC no MM1 v1 atual.
 | `padding_policy` | `uint8` | Regra explicita para o ultimo bloco |
 | `incomplete_block_policy` | `uint8` | Regra para blocos incompletos |
 
-Quando `fec_algorithm = NONE`, os demais campos devem ser zero ou omitidos,
-conforme a codificacao do descritor aprovada. Reed-Solomon e o primeiro
-candidato experimental, mas nenhum parametro RS e uma recomendacao de
-producao.
+Esses campos sao apenas proposta para uma revisao futura: o corpo v1 do
+descritor implementado nao os transporta e nao habilita FEC. A baseline segue
+`fec_algorithm=none`, sem bytes de reparo. Reed-Solomon e candidato experimental,
+nao recomendacao de producao.
 
 CRC e FEC continuam sendo camadas diferentes:
 
@@ -210,9 +209,10 @@ dados. Se `D` for o tamanho do prefixo do descritor:
 dados_no_primeiro_fragmento <= payload_limit - D
 ```
 
-O descritor deve ser curto o bastante para nao criar um fragmento extra na
-maioria dos casos. O numero de mensagens, entretanto, deve ser calculado com o
-descritor incluido e medido separadamente do numero de bytes uteis.
+No descritor v1, `D=19`. O TX rejeita `payload_limit < 19`; exatamente 19
+permite fragmento zero somente com descritor. A contagem e
+`ceil((encoded_bytes + 19) / payload_limit)` e pode acrescentar um fragmento.
+Contabilizar descritor separadamente dos bytes uteis e do envelope MM1.
 
 ### 6.1 Cenario RGB332 da Issue #38
 
@@ -264,9 +264,11 @@ flowchart LR
     L --> M[Decoder]
 ```
 
-O modo com descritor e uma extensao proposta do v1. Um receptor legado nao
-conhece o prefixo e nao pode ser considerado compativel com esse modo. O modo
-legado permanece disponivel e nao sofre alteracao de bytes.
+O modo com descritor e uma extensao opt-in v1 selecionada por
+`--transmission-mode descriptor` no TX. A flag `INLINE_DESCRIPTOR=0x04` em
+todos os fragmentos identifica o modo, sem heuristicas no RX. O prefixo
+`TD | 16 | corpo` esta somente no fragmento zero. Um receptor legado nao e
+compativel. O modo legado permanece default, sem alteracao de bytes.
 
 ## 8. Valores desconhecidos e compatibilidade
 

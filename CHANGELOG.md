@@ -8,6 +8,8 @@ do software ou do protocolo.
 
 ### Documentacao
 
+- Documentado o contrato inline v1 e a decisao de compatibilidade no ADR 0004,
+  substituindo de forma rastreavel a proposta preliminar da Etapa A.
 - Alinhado o perfil de transmissão, a matriz de implementação e o experimento
   RGB332 para distinguir claramente os limites grayscale `128x128` e RGB332
   `64x64`, além do estado do registro `codec=0x02`.
@@ -38,6 +40,10 @@ do software ou do protocolo.
 
 ### Especificacao
 
+- SDD `0.5.0-draft`: extensao opt-in INLINE_DESCRIPTOR (`0x04`), marcador `TD`,
+  corpo fixo big-endian de 16 bytes, encoded_length uint32 obrigatorio e
+  comparacao dos metadados duplicados com o header. Nenhuma mudanca nos bytes
+  legados, offsets do header MM1 v1 ou CRC-16/CCITT-FALSE.
 - Atualizada a revisao do SDD para `0.4.0-draft`, com quantizacao,
   reconstrução, limites e metricas do experimento RGB332.
 - Aprovado o registro RGB332 `0x02` no MM1 v1 sem alterar o cabecalho, usando
@@ -56,6 +62,12 @@ do software ou do protocolo.
 
 ### Implementacao
 
+- Implementados modelo/parser puro do descritor, fragmentacao opt-in,
+  reassemblagem fora de ordem limitada, validacao estrita e rejeicao terminal
+  de descritores inconsistentes, com integracao aos dois codecs, pipeline e
+  TX/RX locais (`--transmission-mode legacy|descriptor`; legado default).
+- Adicionados vetores fixos, falhas de parsing/metadata/comprimento, duplicatas,
+  limites de payload, CRC e ensaios TX/RX UDP sem produzir imagem em falhas.
 - Ampliada a cobertura automatizada para dimensões zero e negativas, entradas
   inválidas grayscale, limites RGB332, dimensões independentes e transmissão
   MM1 RGB332 em `64x64`.
@@ -66,9 +78,9 @@ do software ou do protocolo.
   reutilizar ou alterar o pacote MM1 v1.
 - Adicionada a selecao `--codec grayscale|rgb332` aos aplicativos MM1 locais,
   preservando grayscale como default e usando `levels=0` para RGB332.
-- Nenhuma mudanca de comportamento no protocolo nesta revisao; FEC e descritor
-  continuam sem codigo, enquanto o harness adicional RGB332 permanece
-  experimental.
+- Na revisao historica do experimento RGB332, FEC e descritor ainda nao tinham
+  codigo; o harness adicional RGB332 permanece experimental. A implementacao
+  posterior do descritor esta registrada acima; FEC continua sem codigo.
 - Aplicado ao grayscale o limite independente de `1..128` pixels para largura e
   altura, com testes para limites, dimensoes nao quadradas e rejeicao de valores
   acima do perfil.

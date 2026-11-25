@@ -7,6 +7,7 @@ from meshmedia_lab.codec.decoder import ImageDecoder
 from meshmedia_lab.codec.encoder import EncodedImage, ImageEncoder
 from meshmedia_lab.codec.rgb332 import EncodedRgb332Image, Rgb332Decoder, Rgb332Encoder
 from meshmedia_lab.media import CODEC_GRAYSCALE_PACKED, CODEC_RGB332
+from meshmedia_lab.protocol.descriptor import TransmissionDescriptor
 from meshmedia_lab.protocol.fragmenter import Fragmenter
 from meshmedia_lab.protocol.reassembler import Reassembler, ReassemblyError
 from meshmedia_lab.simulation.channel import ChannelSimulator
@@ -44,9 +45,13 @@ class ImagePipeline:
         width: int = 32,
         height: int = 32,
         levels: int = 16,
+        transmission_mode: str = "legacy",
     ) -> None:
         if codec not in ("grayscale", "rgb332"):
             raise ValueError("codec must be 'grayscale' or 'rgb332'")
+        if transmission_mode not in ("legacy", "descriptor"):
+            raise ValueError("transmission_mode must be 'legacy' or 'descriptor'")
+        self.transmission_mode = transmission_mode
         if encoder is None:
             encoder = (
                 ImageEncoder(width=width, height=height, levels=levels)
@@ -67,10 +72,19 @@ class ImagePipeline:
         channel: ChannelSimulator | None = None,
     ) -> TransmissionResult:
         encoded = self.encoder.encode(pixels)
+        descriptor = (
+            TransmissionDescriptor(
+                metadata=encoded.metadata,
+                encoded_length=len(encoded.data),
+            )
+            if self.transmission_mode == "descriptor"
+            else None
+        )
         packets = self.fragmenter.fragment(
             encoded.data,
             image_id=image_id,
             metadata=encoded.metadata,
+            descriptor=descriptor,
         )
         raw_packets = tuple(packet.to_bytes() for packet in packets)
         delivered = channel.transmit(raw_packets) if channel else raw_packets
@@ -87,6 +101,8 @@ class ImagePipeline:
                 continue
             received_count += 1
 
+        if reassembler.rejected:
+            raise TransmissionError("extended transmission was rejected")
         if not reassembler.is_complete:
             missing = ", ".join(str(number) for number in reassembler.missing_fragments)
             raise TransmissionError(f"incomplete transmission; missing fragments: {missing}")

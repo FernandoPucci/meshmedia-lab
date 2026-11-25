@@ -31,6 +31,7 @@ codec.
 | Integracao Pillow | `apps/local/image_io.py` |
 | Perfil de transmissao | `docs/transmission-profile.md` |
 | Transmission Descriptor | `docs/transmission-descriptor.md` |
+| Modelo/parser do descritor | `src/meshmedia_lab/protocol/descriptor.py` |
 | Matriz de experimentos | `docs/experiment-matrix.md` |
 | Experimento RGB332 | `benchmarks/rgb332_experiment.py` |
 
@@ -89,11 +90,11 @@ cabecalho fica para depois da medicao, conforme o SDD.
 
 ## Modos de transmissao MM1 v1
 
-O caminho implementado atualmente e o modo legado. Cada fragmento possui o
+O caminho default continua sendo o modo legado. Cada fragmento possui o
 cabecalho v1 de 19 bytes, metadados de imagem, payload e CRC. O primeiro payload
 comeca diretamente com dados codificados.
 
-O modo com descritor e uma extensao proposta dentro do mesmo protocolo v1. Ele
+O modo com descritor e uma extensao opt-in implementada no protocolo v1. Ele
 mantem o cabecalho, o CRC e os fragmentos posteriores, mas coloca no primeiro
 payload um prefixo compacto:
 
@@ -101,8 +102,9 @@ payload um prefixo compacto:
 header v1 | marker | descriptor_length | descriptor_body | dados
 ```
 
-O receptor atualizado valida o prefixo e remove seus bytes antes de entregar os
-dados ao `Reassembler`. O receptor legado nao conhece esse prefixo; portanto os
+O `Reassembler` atualizado seleciona o modo pela flag `0x04` (todos os
+fragmentos), usa o parser puro centralizado e remove o prefixo antes de montar
+os dados. O receptor legado nao conhece esse prefixo; portanto os
 modos devem ser selecionados explicitamente e nao sao transparentemente
 interoperaveis.
 
@@ -117,16 +119,21 @@ flowchart TD
     F --> G[Receiver valida pacote]
     G --> H{Descritor presente?}
     H -->|Nao| I[Metadados do cabecalho v1]
-    H -->|Sim| J[Valida e remove prefixo]
+    H -->|Sim| J[Reassembler valida e remove prefixo do zero]
     I --> K[Reassembler]
     J --> K
     K --> L[Decoder]
 ```
 
-O descritor nao repete `image_id`, fragmentacao, codec, dimensoes ou niveis ja
-presentes no cabecalho v1. Ele e reservado para parametros adicionais, como
-compressao, tamanho nao derivavel e FEC futuro. O limite de payload deve
-considerar o tamanho do prefixo e pode aumentar a quantidade de fragmentos.
+O ADR 0004 substitui a proposta anterior de nao duplicar metadata: o corpo v1
+repete midia, codec, dimensoes e levels e exige igualdade com os headers.
+image_id e contadores nao sao repetidos. O corpo inclui versao e encoded_length
+obrigatorio; compressao NONE, parametros extras vazios e nenhum campo FEC.
+O limite de payload considera o prefixo de 19 bytes. O RX conserva dados fora de
+ordem em armazenamento limitado pelo tamanho derivado de metadata validada,
+nao prealoca por comprimentos arbitrarios e so decodifica apos descritor valido,
+todos os fragmentos e tamanho exato. Erros estendidos sao terminais; CRC e
+validado antes do parser. Legado comeca diretamente com dados, mesmo "TD".
 
 ## Interface FEC na arquitetura
 
@@ -199,9 +206,9 @@ campo `levels` vale `0` somente para RGB332. O Transmission Descriptor nao e
 obrigatorio. O harness UDP possui um enquadramento local separado e nao deve
 ser confundido com o envelope MM1.
 
-Pillow, Qt, FEC, retransmissao e o modo com descritor permanecem extensoes ou
-componentes futuros conforme a matriz de implementacao; Pillow e usado pelas
-aplicacoes locais e pelo benchmark RGB332 somente na borda. MeshCore continua
+Qt, FEC e retransmissao permanecem componentes futuros; o descritor e opcional
+e implementado localmente. Pillow e usado pelas aplicacoes locais e pelo
+benchmark RGB332 somente na borda. MeshCore continua
 sendo um transporte planejado, nao uma capacidade implementada.
 Os limites e formatos do transporte MeshCore usados como referencia estao em
 [`meshcore-reference.md`](meshcore-reference.md).

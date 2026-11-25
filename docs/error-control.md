@@ -14,7 +14,7 @@ proposta experimental.
 O estado completo de conformidade esta em
 [`implementation-status.md`](implementation-status.md).
 
-Os parametros de transmissao e a proposta de descritor que podera anunciar FEC
+Os parametros de transmissao e o descritor inline atual (sem campos FEC)
 estao em [`transmission-profile.md`](transmission-profile.md) e
 [`transmission-descriptor.md`](transmission-descriptor.md). Os cenarios de
 comparacao estao em [`experiment-matrix.md`](experiment-matrix.md).
@@ -35,7 +35,8 @@ usa redundancia para corrigir ou recuperar. Os termos nao sao sinonimos.
 
 ```text
 Imagem
-  -> encoder grayscale
+  -> encoder grayscale ou RGB332
+  -> descritor inline opcional (sem FEC)
   -> fragmentacao em payloads
   -> cabecalho + payload
   -> CRC-16/CCITT-FALSE
@@ -283,10 +284,10 @@ cabecalho precisara identificar pelo menos o bloco FEC, o indice do simbolo, o
 tamanho do bloco e a configuracao `k/n` ou um perfil equivalente.
 
 O protocolo atual nao possui esses campos. A flag `FEC_PRESENT` do SDD e
-conceitual e nao existe nas flags implementadas em `packet.py`. A extensao
-inline proposta para MM1 v1 pode transportar esses parametros no corpo do
-descritor, mas isso continua sem implementacao e depende da revisao do wire
-format da extensao.
+conceitual e nao existe nas flags implementadas em `packet.py`. A flag `0x04`
+identifica somente INLINE_DESCRIPTOR (ADR 0004), nunca FEC. O corpo v1 do
+descritor nao transporta parametros FEC: sera necessaria revisao futura,
+explicitamente aprovada, antes dessa integracao.
 
 ## 7. Plano de afericao
 

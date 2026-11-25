@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import re
 
-from meshmedia_lab.protocol.packet import Packet
+from meshmedia_lab.protocol.descriptor import DESCRIPTOR_PREFIX_SIZE
+from meshmedia_lab.protocol.packet import FLAG_INLINE_DESCRIPTOR, Packet
 
 _RESOLUTION = re.compile(r"^(\d+)x(\d+)$", re.IGNORECASE)
 
@@ -20,11 +21,14 @@ class PacketStats:
     payload_bytes: int = 0
     wire_bytes: int = 0
     invalid_packets: int = 0
+    descriptor_bytes: int = 0
 
     def record(self, packet: Packet, raw: bytes) -> None:
         self.packets += 1
         self.payload_bytes += len(packet.payload)
         self.wire_bytes += len(raw)
+        if packet.fragment_number == 0 and packet.flags & FLAG_INLINE_DESCRIPTOR:
+            self.descriptor_bytes += DESCRIPTOR_PREFIX_SIZE
 
     @property
     def overhead_bytes(self) -> int:
@@ -126,12 +130,14 @@ def log_summary(
         "  payload_bytes=%d\n"
         "  message_bytes_total=%d\n"
         "  overhead_bytes=%d\n"
+        "  descriptor_bytes=%d\n"
         "  invalid_packets=%d%s",
         direction,
         stats.packets,
         stats.payload_bytes,
         stats.wire_bytes,
         stats.overhead_bytes,
+        stats.descriptor_bytes,
         stats.invalid_packets,
         expected,
     )

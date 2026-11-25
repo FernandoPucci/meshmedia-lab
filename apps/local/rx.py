@@ -6,6 +6,7 @@ import argparse
 import logging
 import socket
 
+from meshmedia_lab.application.pipeline import ImagePixels
 from meshmedia_lab.codec.decoder import ImageDecoder
 from meshmedia_lab.codec.encoder import EncodedImage
 from meshmedia_lab.codec.rgb332 import EncodedRgb332Image, Rgb332Decoder
@@ -50,7 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _decode_packet_stream(reassembler: Reassembler) -> tuple[tuple[int, ...], ...]:
+def _decode_packet_stream(reassembler: Reassembler) -> ImagePixels:
     metadata = reassembler.metadata
     if metadata is None:
         raise ReassemblyError("complete transmission has no metadata")
@@ -109,6 +110,9 @@ def main(argv: list[str] | None = None) -> int:
             except ReassemblyError as error:
                 stats.invalid_packets += 1
                 LOGGER.warning("RX rejected packet error=%s", error)
+                if reassembler.rejected:
+                    log_summary(LOGGER, "RX", stats)
+                    return 1
                 continue
 
             stats.record(packet, raw)
@@ -117,7 +121,17 @@ def main(argv: list[str] | None = None) -> int:
             if not reassembler.is_complete:
                 continue
 
-            image = _decode_packet_stream(reassembler)
+            try:
+                image = _decode_packet_stream(reassembler)
+            except ValueError as error:
+                LOGGER.error("RX cannot decode image: %s", error)
+                return 1
+            if reassembler.descriptor is not None:
+                LOGGER.info(
+                    "RX mode=descriptor descriptor_version=%d encoded_length=%d",
+                    reassembler.descriptor.version,
+                    reassembler.descriptor.encoded_length,
+                )
             if reassembler.metadata and reassembler.metadata.codec == CODEC_RGB332:
                 save_rgb_pixels(image, args.output)
             else:
