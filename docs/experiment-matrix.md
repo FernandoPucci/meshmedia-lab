@@ -3,10 +3,10 @@
 Este documento define como comparar codecs e controle de erros sem confundir
 medicoes do laboratorio local com resultados de radio real.
 
-**Estado:** matriz proposta; o contrato abstrato FEC da Issue #19 e o algoritmo
-standalone Reed-Solomon da Issue #20 foram implementados, mas nenhum executor
-geral de benchmarks ou integracao FEC/MM1 foi implementado. O executor
-específico do experimento RGB332 não substitui esse framework geral.
+**Estado:** matriz proposta; o contrato abstrato FEC da Issue #19, o algoritmo
+standalone Reed-Solomon da Issue #20 e a integracao local opt-in das Issues
+#21/#22 foram implementados. Ainda nao existe um executor geral de benchmarks.
+O executor específico do experimento RGB332 não substitui esse framework geral.
 
 ## 1. Objetivo
 
@@ -73,11 +73,11 @@ dados codificados
   -> reassemblagem se todos os fragmentos existirem
 ```
 
-Um pacote perdido ou rejeitado pelo CRC nao e recuperado pelo codigo atual.
+Um pacote perdido ou rejeitado pelo CRC nao e recuperado pelo caminho CRC-only.
 
 ### 4.2 CRC + Reed-Solomon
 
-E uma configuracao futura de experimento:
+E a configuracao implementada pelo pipeline FEC opt-in:
 
 ```text
 dados de origem
@@ -123,17 +123,17 @@ comparacao.
 | C03 | CRC-only | 20% | 0% | simulacao | Executavel com canal atual |
 | C04 | CRC-only | 30% | 0% | simulacao | Executavel com canal atual |
 | C05 | CRC-only | 0% | taxa definida | simulacao | Executavel com canal atual |
-| F01 | CRC+RS(32,28) | 5% | 0% | simulacao | Futuro |
-| F02 | CRC+RS(32,24) | 10% | 0% | simulacao | Futuro |
-| F03 | CRC+RS(32,20) | 20% | 0% | simulacao | Futuro |
+| F01 | CRC+RS(32,28) | 5% | 0% | simulacao | Executavel pelo pipeline |
+| F02 | CRC+RS(32,24) | 10% | 0% | simulacao | Executavel pelo pipeline |
+| F03 | CRC+RS(32,20) | 20% | 0% | simulacao | Executavel pelo pipeline |
 | F04 | CRC+RS | rajada | 0% | simulacao | Futuro; canal em rajada ausente |
 | R01 | RS-only | 10% | 0% | harness controlado | Futuro |
 | R02 | RS-only | 0% | erros conhecidos | harness controlado | Futuro |
 
-As linhas F e R nao representam integracao do protocolo ou funcionalidades de
-transporte. Elas documentam experimentos que ainda dependem de um executor
-geral, da especificacao dos blocos no wire format e do simulador correspondente;
-os testes unitarios da Issue #20 validam somente o algoritmo standalone.
+As linhas F representam a integracao local opt-in atual, mas ainda dependem de
+um executor geral para produzir comparacoes reproduziveis. As linhas R
+continuam sendo harnesses controlados e nao alteram o formato legado. O canal
+em rajada e as metricas gerais permanecem pendentes.
 
 ## 6. Variacao de codec e dimensao
 

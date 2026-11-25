@@ -10,7 +10,7 @@ mas esta matriz e a referencia para distinguir proposta, plano e implementacao.
 |---|---|
 | Versao do software | `0.1.0` |
 | Versao do protocolo binario | `1` |
-| Revisao do SDD | `0.6.0-draft` |
+| Revisao do SDD | `0.7.0-draft` |
 | Conformidade | Parcial |
 | Ultima revisao | 2026-11-25 |
 
@@ -47,10 +47,13 @@ que a capacidade existe.
 | Transporte UDP local | Secoes 13 e 20 | Baseline de laboratorio | Implementado | `src/meshmedia_lab/transport/udp.py`, testes de integracao |
 | Simulacao de perda independente | Secao 11 | Parcial | Implementado | `src/meshmedia_lab/simulation/channel.py` |
 | Perda em rajadas, latencia e jitter | Secao 11 | Planejado | Nao implementado | Sem suporte no simulador atual |
-| FEC standalone | Secao 9.3 | Experimento standalone | Parcial | Reed-Solomon funcional sem integracao MM1; `src/meshmedia_lab/fec/reed_solomon.py` |
+| FEC standalone | Secao 9.3 | Experimento standalone | Implementado | Reed-Solomon funcional; `src/meshmedia_lab/fec/reed_solomon.py` |
 | Reed-Solomon | Secao 10 e Fase 5 | Experimento standalone | Implementado | `ReedSolomonEncoder`, `ReedSolomonDecoder` e `tests/unit/test_reed_solomon.py` |
 | Parametrizacao RS experimental | Secao 10 e Fase 5 | Experimento standalone | Parcial | RS(32,28), RS(32,24), RS(32,20) e vetores unitarios; sem executor geral |
 | Interface abstrata FEC | Issue #19 / `docs/error-control.md` | Contrato implementado | Implementado | `src/meshmedia_lab/fec/contract.py`, `tests/unit/test_fec.py` |
+| Preparacao de blocos FEC no TX | Issues #21/#22 | Integracao local opt-in | Implementado | `src/meshmedia_lab/fec/transmission.py`, `tests/unit/test_fec_transmission.py` |
+| Frames FEC no MM1 | Issues #21/#22 | Extensao experimental opt-in | Implementado | `FLAG_FEC=0x08`, `protocol/fec.py`, `tests/unit/test_fec_protocol.py` |
+| Recuperacao FEC no RX | Issue #22 | Integracao local opt-in | Implementado | `FecReassembler`, pipeline e testes UDP |
 | ACK, NACK e retransmissao | Secao 9.2 e Fase 6 | Planejado | Nao implementado | Sem mensagens de controle |
 | Transmissao progressiva | Secao 5 e Fase 8 | Planejado | Nao implementado | Codec atual gera uma representacao unica |
 | Integracao MeshCore | Secao 17 e Fase 9 | Planejado | Nao implementado | Sem adaptador; limites em `docs/meshcore-reference.md` |
@@ -82,30 +85,33 @@ O MVP local atualmente funciona desta forma:
    fora de `1..64`. As dimensoes continuam independentes em ambos os codecs.
 
 Consequentemente, uma perda ou uma corrupcao detectada pelo CRC torna a
-transmissao incompleta no MVP. O algoritmo Reed-Solomon standalone pode
-recuperar blocos FEC em memoria dentro dos limites matematicos documentados,
-mas nao e chamado pelo pipeline MM1. Integracao FEC e retransmissao continuam
-indisponiveis.
+transmissao incompleta no caminho legado. Quando `FLAG_FEC=0x08` e usado, o
+`FecReassembler` agrupa os frames por bloco e simbolo, infere erasures
+ausentes, chama o decoder FEC e somente entrega os bytes ao codec quando todos
+os blocos foram recuperados. O modo FEC continua experimental e opt-in; nao ha
+ACK/NACK nem retransmissao.
 
 O modo legado continua default. O modo `descriptor` usa flag `0x04` em todos os
 pacotes e prefixo `TD | 16 | corpo v1` no fragmento zero. O modelo/parser valida
 metadados e comprimento, o reassembler limita dados fora de ordem e rejeita
 inconsistencias sem fallback; TX/RX locais e pipeline aceitam os dois modos.
-Testes fixam os bytes legados, o CRC e casos positivos/negativos. O corpo atual
-nao suporta FEC, compressao ou parametros extras. A PR #43 integrou esta
-extensao ao master; as Issues #17, #18 e #5 foram encerradas apos a revisao
-das evidencias do merge.
+O modo FEC usa adicionalmente `FLAG_FEC=0x08` e frames `FC` repetidos por
+simbolo; o corpo do descritor permanece sem campos FEC. Testes fixam os bytes
+legados, o CRC, o descritor e a extensao FEC. A PR #43 integrou o descritor ao
+master; as Issues #17, #18 e #5 foram encerradas apos a revisao das evidencias
+do merge.
 
 ## Propostas que ainda nao sao protocolo
 
-O SDD apresenta flags, FEC, ACK/NACK e formatos de cabecalho adicionais como
-possibilidades de projeto. Esses elementos nao fazem parte do protocolo binario
-versao 1 enquanto nao forem implementados, testados e registrados como uma nova
-decisao de compatibilidade.
+O SDD ainda apresenta ACK/NACK e formatos adicionais como possibilidades de
+projeto. Eles nao fazem parte do protocolo binario versao 1. A extensao FEC
+experimental agora implementada e uma capacidade opt-in que exige TX/RX
+atualizados; ela nao altera o caminho legado nem deve ser tratada como
+interoperabilidade transparente.
 
-Em particular, `FEC_PRESENT` aparece no cabecalho conceitual do SDD, mas ainda
-nao existe nas flags de `packet.py`. A matriz deve continuar marcando essa
-capacidade como proposta.
+`FLAG_FEC=0x08` e reservado para a extensao experimental atual. A flag
+`INLINE_DESCRIPTOR=0x04` continua exclusiva do Transmission Descriptor e nao
+foi reutilizada.
 
 O ADR 0004 registra explicitamente a extensao opcional do descritor, sem mudar
 os bytes legados, o cabecalho de 19 bytes ou o CRC. O envio estendido exige RX
@@ -161,6 +167,38 @@ Resultado registrado: 104 testes passaram no `unittest`, 104 testes passaram
 no `pytest` e a verificacao Ruff da camada FEC passou. Nao foi adicionada
 dependencia externa. A execucao global do Ruff ainda possui apontamentos
 preexistentes fora da camada desta Issue.
+
+## Verificacao das Issues #21 e #22 (2026-11-25)
+
+A preparacao FEC, os frames opt-in, a recuperacao no RX e os caminhos locais
+foram implementados sem alterar os vetores legados do MM1 v1. A extensao usa
+`FLAG_FEC=0x08` e frames `FC`; o header, o CRC e o descritor v1 permanecem
+inalterados.
+
+```bash
+PYTHONPATH=src:. python3 -m unittest discover -s tests -p 'test_*.py'
+python3 -m pytest -q
+ruff check src/meshmedia_lab/fec \
+  src/meshmedia_lab/protocol/fec.py \
+  src/meshmedia_lab/protocol/__init__.py \
+  src/meshmedia_lab/application/pipeline.py \
+  apps/local/tx.py apps/local/rx.py \
+  tests/unit/test_fec_transmission.py tests/unit/test_fec_protocol.py \
+  tests/integration/test_pipeline.py tests/integration/test_local_apps.py
+git diff --check
+```
+
+Resultado: 122 testes passaram; a verificacao Ruff dos arquivos da entrega
+passou; `git diff --check` nao encontrou problemas. Os testes cobrem
+grayscale, RGB332, blocos multiplos, padding, perdas, rejeicoes por CRC,
+falha por simbolos insuficientes, modo descriptor e TX/RX UDP local.
+`python3 -m pytest -q` tambem passou com 122 testes e 336 subtests, com um
+warning de deprecacao originado pelo plugin `anyio`.
+
+As configuracoes RS(32,28), RS(32,24) e RS(32,20) foram exercitadas no
+pipeline sem declarar nenhuma como recomendada para producao. Nenhum teste de
+MeshCore ou radio real foi executado. A verificacao global do Ruff ainda possui
+29 apontamentos preexistentes fora dos arquivos desta entrega.
 
 ## Como atualizar a matriz
 

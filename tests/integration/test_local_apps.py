@@ -1,10 +1,10 @@
 import os
-from pathlib import Path
 import socket
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 try:
     from PIL import Image
@@ -107,6 +107,12 @@ class LocalApplicationsTests(unittest.TestCase):
             with Image.open(output_path) as received:
                 self.assertEqual(received.mode, "L")
                 self.assertEqual(received.size, (8, 6))
+
+    def test_tx_and_rx_exchange_grayscale_with_fec_over_udp(self) -> None:
+        self._assert_fec_exchange("grayscale")
+
+    def test_tx_and_rx_exchange_rgb332_with_fec_over_udp(self) -> None:
+        self._assert_fec_exchange("rgb332")
 
     def test_tx_and_rx_exchange_rgb332_over_udp(self) -> None:
         self._assert_rgb332_exchange(
@@ -242,6 +248,124 @@ class LocalApplicationsTests(unittest.TestCase):
             with Image.open(output_path) as received:
                 self.assertEqual(received.mode, "RGB")
                 self.assertEqual(received.size, expected_size)
+
+    def _assert_fec_exchange(self, codec: str) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary = Path(temporary_directory)
+            input_path = temporary / "input.png"
+            output_path = temporary / "received.png"
+            if codec == "grayscale":
+                image = Image.new("L", (4, 4))
+                image.putdata(list(range(16)))
+                expected_messages = 14
+            else:
+                image = Image.new("RGB", (4, 4))
+                image.putdata(
+                    [
+                        (0, 0, 0),
+                        (255, 0, 0),
+                        (0, 255, 0),
+                        (0, 0, 255),
+                        (255, 255, 255),
+                        (128, 64, 32),
+                        (32, 64, 128),
+                        (200, 100, 50),
+                        (50, 100, 200),
+                        (16, 32, 48),
+                        (64, 96, 128),
+                        (192, 224, 240),
+                        (10, 20, 30),
+                        (40, 50, 60),
+                        (70, 80, 90),
+                        (100, 110, 120),
+                    ]
+                )
+                expected_messages = 28
+            image.save(input_path)
+
+            port = self._free_port()
+            environment = os.environ.copy()
+            environment["PYTHONPATH"] = os.pathsep.join(
+                (str(PROJECT_ROOT / "src"), str(PROJECT_ROOT))
+            )
+            receiver = subprocess.Popen(
+                [
+                    sys.executable,
+                    "-m",
+                    "apps.local.rx",
+                    "--bind",
+                    "127.0.0.1",
+                    "--port",
+                    str(port),
+                    "--output",
+                    str(output_path),
+                    "--timeout",
+                    "5",
+                    "--log-level",
+                    "DEBUG",
+                ],
+                cwd=PROJECT_ROOT,
+                env=environment,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
+
+            try:
+                ready_line = receiver.stdout.readline() if receiver.stdout else ""
+                self.assertIn("RX listening", ready_line)
+                command = [
+                    sys.executable,
+                    "-m",
+                    "apps.local.tx",
+                    "--image",
+                    str(input_path),
+                    "--host",
+                    "127.0.0.1",
+                    "--port",
+                    str(port),
+                    "--resolution",
+                    "4x4",
+                    "--codec",
+                    codec,
+                    "--payload",
+                    "64",
+                    "--image-id",
+                    "24" if codec == "grayscale" else "25",
+                    "--fec-algorithm",
+                    "reed_solomon",
+                    "--fec-data-symbols",
+                    "4",
+                    "--fec-repair-symbols",
+                    "3",
+                    "--log-level",
+                    "DEBUG",
+                ]
+                transmitter = subprocess.run(
+                    command,
+                    cwd=PROJECT_ROOT,
+                    env=environment,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=5,
+                )
+                receiver_output, _ = receiver.communicate(timeout=5)
+            finally:
+                if receiver.poll() is None:
+                    receiver.kill()
+                    receiver.wait()
+
+            self.assertEqual(transmitter.returncode, 0, transmitter.stderr)
+            self.assertEqual(receiver.returncode, 0, receiver_output)
+            self.assertTrue(output_path.exists())
+            self.assertIn("fec_algorithm=reed_solomon", transmitter.stderr)
+            self.assertIn("prepared FEC blocks=", transmitter.stderr)
+            self.assertIn(f"messages={expected_messages}", receiver_output)
+            self.assertIn("mode=fec", receiver_output)
+            with Image.open(output_path) as received:
+                self.assertEqual(received.mode, image.mode)
+                self.assertEqual(received.size, (4, 4))
 
     @staticmethod
     def _free_port() -> int:

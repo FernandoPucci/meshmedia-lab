@@ -66,8 +66,9 @@ Offsets relativos ao inicio do **corpo**, isto e, payload offset 3:
 
 Nao e TLV: nao ha campos opcionais/repetidos. Campos ausentes, corpo excedente
 ou parametros extras sao invalidos, nao ignorados. `levels` parametriza
-grayscale; RGB332 identifica profundidade fixa RRRGGGBB. FEC e compressao futura
-nao sao implicitamente habilitados nem possuem campos neste corpo.
+grayscale; RGB332 identifica profundidade fixa RRRGGGBB. FEC nao possui campos
+neste corpo: o modo FEC opt-in usa `FLAG_FEC=0x08` e um frame `FC` separado no
+payload, sem alterar este descritor.
 
 O descritor repete media_type, codec, width, height e levels para autodescricao,
 **substituindo a proposta anterior da Etapa A que evitava duplicacao**. Todos
@@ -138,8 +139,10 @@ payloads inclui descritor. Nenhum valor desta tabela representa radio real.
 
 O reassembler nao possui relogio. Timeout permanece responsabilidade do chamador;
 RX CLI usa `--timeout` de inatividade (default 30 s). Nao ha multiplexacao,
-timeout absoluto, identificacao autenticada do emissor ou recuperacao por FEC.
-Pacote rejeitado por CRC nao fornece indice confiavel de erasure.
+timeout absoluto ou identificacao autenticada do emissor. A recuperacao FEC
+existe somente no `FecReassembler` opt-in; o reassembler legado permanece sem
+recuperacao. Pacote rejeitado por CRC nao fornece indice diretamente, mas no
+modo FEC a posicao ausente e inferida do conjunto esperado de simbolos.
 
 ## 5. Compatibilidade e historico
 
@@ -156,8 +159,9 @@ APIs e default. Nao ha promessa de interoperabilidade transparente.
 ADR 0004 registra a troca da proposta preliminar (sem campos duplicados, length
 opcional, magic indefinido) pelo contrato atual aprovado para implementacao.
 O protocolo continua MM1 v1 com extensao opt-in; nao e chamado de v2.
-FEC, Reed-Solomon e outros formatos permanecem propostos; nao cabem implicitamente
-nesta versao. Nao se deve alterar este corpo silenciosamente para acrescenta-los.
+O frame FEC e uma extensao separada e explicitamente selecionada por
+`FLAG_FEC=0x08`; ele nao acrescenta campos ao corpo deste descritor nem altera
+os bytes legados.
 
 ## 6. Vetores fixos
 

@@ -20,7 +20,9 @@ codec.
 | Reassembler | `src/meshmedia_lab/protocol/reassembler.py` |
 | CRC | `src/meshmedia_lab/protocol/crc.py` |
 | Contrato FEC abstrato | `src/meshmedia_lab/fec/contract.py` |
+| Preparacao FEC | `src/meshmedia_lab/fec/transmission.py` |
 | Packet/Header | `src/meshmedia_lab/protocol/packet.py` |
+| Frames e reassemblagem FEC | `src/meshmedia_lab/protocol/fec.py` |
 | Transmitter | `src/meshmedia_lab/transport/transmitter.py` |
 | Receiver | `src/meshmedia_lab/transport/receiver.py` |
 | Transport Adapter | `src/meshmedia_lab/transport/adapter.py` |
@@ -148,7 +150,7 @@ flowchart LR
     B --> C[Particao em blocos]
     C --> D[FEC Encoder abstrato]
     D --> E[Simbolos de origem e reparo]
-    E --> F[Fragmenter MM1 v1]
+    E --> F[FecPacketizer / Fragmenter MM1 v1]
     F --> G[Packet + CRC]
     G --> H[Transport Adapter]
     H --> I[Packet + CRC validado]
@@ -160,8 +162,16 @@ flowchart LR
 O contrato abstrato de FEC esta implementado em
 `src/meshmedia_lab/fec/contract.py` e documentado em
 `docs/error-control.md`. A implementacao standalone de Reed-Solomon em
-`src/meshmedia_lab/fec/reed_solomon.py` gera simbolos de reparo em memoria,
-mas ainda nao integra o pipeline, o protocolo ou o transporte.
+`src/meshmedia_lab/fec/reed_solomon.py` gera simbolos de reparo em memoria.
+`src/meshmedia_lab/fec/transmission.py` prepara blocos sem conhecer o
+protocolo; `src/meshmedia_lab/protocol/fec.py` identifica e transporta os
+simbolos como uma extensao opt-in dentro do payload MM1 v1.
+
+O modo FEC repete a configuracao, o bloco, o simbolo e os metadados de
+comprimento em cada frame. O header MM1 de 19 bytes e o CRC permanecem
+inalterados. O RX agrupa frames por transmissao e bloco, trata posicoes ausentes
+como erasures e chama o `FecDecoder` antes de entregar os bytes ao decoder de
+imagem.
 
 ## Execucao
 
@@ -210,9 +220,10 @@ campo `levels` vale `0` somente para RGB332. O Transmission Descriptor nao e
 obrigatorio. O harness UDP possui um enquadramento local separado e nao deve
 ser confundido com o envelope MM1.
 
-Qt, FEC e retransmissao permanecem componentes futuros; o descritor e opcional
-e implementado localmente. Pillow e usado pelas aplicacoes locais e pelo
-benchmark RGB332 somente na borda. MeshCore continua
+Qt e retransmissao permanecem componentes futuros; o FEC agora e uma extensao
+experimental opt-in no pipeline local e o descritor continua opcional.
+Pillow e usado pelas aplicacoes locais e pelo benchmark RGB332 somente na
+borda. MeshCore continua
 sendo um transporte planejado, nao uma capacidade implementada.
 Os limites e formatos do transporte MeshCore usados como referencia estao em
 [`meshcore-reference.md`](meshcore-reference.md).
@@ -262,6 +273,6 @@ flowchart LR
     MESH <--> SER2
 ```
 
-Esta arquitetura-alvo não altera o wire format MM1 v1. RGB332 já está
-implementado no pipeline local; FEC, ACK/NACK e transmissão progressiva
-continuam indisponíveis até suas respectivas implementações e validações.
+Esta arquitetura-alvo preserva o caminho wire MM1 v1 legado. RGB332 e FEC
+estao implementados no pipeline local como capacidades opt-in; ACK/NACK e
+transmissao progressiva continuam indisponiveis.

@@ -19,7 +19,7 @@ os valores efetivamente usados em cada transmissao e experimento.
 | Limite de 128 x 128 | Implementado no grayscale; nao inclui tiling |
 | Descritor inline no primeiro fragmento | Implementado localmente como extensao opt-in v1; ADR 0004 |
 | RGB332 | Implementado no codec e no envelope MM1 v1 |
-| Contrato FEC parametrizavel | Implementado; RS standalone experimental sem integracao |
+| Contrato FEC parametrizavel | Implementado; pipeline FEC opt-in integrado |
 | Perfis nomeados ou presets | Futuro; fora desta etapa |
 
 O protocolo continua sendo MM1 v1. O descritor nao cria uma v2 e nao altera o
@@ -46,7 +46,7 @@ efetivos sao os definidos pelo cabecalho existente em
 | `total_fragments` | `uint16` | Pelo menos 1 | Implementado no v1 |
 | `payload_limit` | `uint8` no v1 | `1..255` local; limite externo pode ser menor | Implementado |
 | `compression_id` | `uint8` no descritor | Apenas `0=NONE`; outros rejeitados | Implementado NONE |
-| `fec_config` | estrutura explicita | Sem FEC no baseline | Contrato abstrato implementado; integracao proposta |
+| `fec_config` | estrutura explicita | Sem FEC no baseline | Contrato, preparacao TX e recuperacao RX implementados |
 
 `width` e `height` nao formam uma proporcao obrigatoria. Imagens retangulares
 sao validas. A area maxima inicial e, portanto, `128 x 128`; nao ha tiling nem
@@ -160,8 +160,9 @@ parametros documentados.
 
 ## 5. FEC no perfil
 
-O perfil reserva uma configuracao explicita para controle de erros, mas nao
-habilita FEC no MM1 v1 atual.
+O perfil reserva uma configuracao explicita para controle de erros. A baseline
+continua sem FEC, mas o transmissor pode selecionar o modo opt-in experimental
+e o RX atualizado pode recuperar os blocos recebidos.
 
 | Campo | Tipo candidato | Regra |
 |---|---|---|
@@ -174,16 +175,16 @@ habilita FEC no MM1 v1 atual.
 | `padding_policy` | `uint8` | Regra explicita para o ultimo bloco |
 | `incomplete_block_policy` | `uint8` | Regra para blocos incompletos |
 
-Esses campos sao apenas proposta para uma revisao futura: o corpo v1 do
-descritor implementado nao os transporta e nao habilita FEC. A baseline segue
-`fec_algorithm=none`, sem bytes de reparo. Reed-Solomon standalone e um
-experimento implementado, nao uma recomendacao de producao nem uma
-funcionalidade do protocolo.
+O corpo v1 do descritor implementado continua sem esses campos. No modo FEC,
+`FLAG_FEC=0x08` seleciona frames `FC` no payload dos pacotes MM1; os frames
+transportam a configuracao, os indices, o comprimento e o padding. A baseline
+segue `fec_algorithm=none`, sem bytes de reparo. Reed-Solomon esta integrado
+como experimento local, nao como recomendacao de producao.
 
 CRC e FEC continuam sendo camadas diferentes:
 
 - CRC detecta corrupcao no pacote e pode fazer o pacote ser tratado como
-  erasure por um futuro decoder FEC.
+  erasure pelo decoder FEC integrado.
 - FEC adiciona redundancia e pode recuperar dados dentro de seus limites.
 - Desabilitar CRC para o experimento RS-only nao altera o MM1 v1; esse modo
   pertence apenas ao harness controlado dos benchmarks.

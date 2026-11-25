@@ -122,9 +122,9 @@ alternativas `GRP_DATA`/`RAW_CUSTOM` estao em
 - Nao e um substituto do MeshCore nem uma implementacao de radio.
 - Nao e apenas um codec de imagem.
 - Nao promete transmitir fotografias convencionais com qualidade original.
-- Nao considera a integracao FEC no protocolo, nem retransmissao, como
-  funcionalidades prontas. Reed-Solomon existe somente como algoritmo
-  standalone experimental.
+- Nao considera retransmissao seletiva ou radio MeshCore como funcionalidades
+  prontas. FEC/Reed-Solomon existe como extensao experimental opt-in no
+  pipeline local e exige TX/RX atualizados.
 
 ### O problema de engenharia
 
@@ -161,12 +161,10 @@ O descritor inline opcional v1 usa flag `0x04`, marcador `TD` e prefixo de 19
 bytes somente no primeiro payload. Exige RX atualizado; nao ha negociacao
 automatica. Cabeçalho MM1 de 19 bytes e CRC permanecem inalterados.
 
-O contrato abstrato de FEC foi materializado para testes independentes e
-Reed-Solomon foi implementado como algoritmo standalone experimental. Ainda
-nao estao implementados a integracao FEC no pipeline, ACK/NACK, retransmissao
-seletiva, transmissao progressiva ou um adaptador MeshCore. Essas integracoes
-serao tratadas em atividades posteriores, nao como capacidades de transporte
-existentes.
+O contrato abstrato de FEC e o Reed-Solomon foram integrados ao pipeline local
+como modo opt-in. O frame FEC usa `FLAG_FEC=0x08` e nao altera o header MM1 de
+19 bytes, o CRC ou o caminho legado. ACK/NACK, retransmissao seletiva,
+transmissao progressiva e um adaptador MeshCore continuam fora da implementacao.
 
 O `1` de MM1 identifica a primeira versao do protocolo no cabecalho. Ele nao e a
 versao do pacote Python: a implementacao de referencia atualmente e `0.1.0`.
@@ -290,11 +288,28 @@ Parametros importantes:
 - `--codec`: `grayscale` ou `rgb332`; o default e `grayscale`.
 - `--transmission-mode`: `legacy` (default) ou `descriptor`; o segundo exige
   payload de pelo menos 19 bytes e RX atualizado.
+- `--fec-algorithm`: `none` (default) ou `reed_solomon`.
+- `--fec-data-symbols` e `--fec-repair-symbols`: `k` e `r` explicitos por bloco.
+- `--fec-symbol-size`, `--fec-interleaving-depth`, `--fec-padding-policy` e
+  `--fec-incomplete-block-policy`: demais parametros da configuracao FEC.
 - `--levels`: quantidade de tons de grayscale.
 - `--payload`: quantidade maxima de bytes de dados por pacote.
 - `--image-id`: identificador da transmissao.
 - `--log-level DEBUG`: mostra os bytes completos de cada datagrama.
 - `--log-file`: opcionalmente grava os logs em um arquivo.
+
+Para uma transmissao experimental com RS(7,4), use configuracao explicita:
+
+```bash
+PYTHONPATH=src:. python3 -m apps.local.tx \
+  --image caminho/para/imagem.jpg --host 127.0.0.1 --port 9000 \
+  --resolution 32x32 --payload 64 \
+  --fec-algorithm reed_solomon \
+  --fec-data-symbols 4 --fec-repair-symbols 3
+```
+
+O RX detecta `FLAG_FEC=0x08` automaticamente. O modo exige que TX e RX estejam
+atualizados; sem `--fec-algorithm`, o TX permanece no caminho legado.
 
 ### Formato do pacote
 
@@ -503,8 +518,8 @@ PY
 ## Limitacoes atuais
 
 - Nao ha comunicacao real com MeshCore.
-- A integracao FEC, retransmissao e RLE ainda nao estao implementadas; o
-  algoritmo Reed-Solomon standalone nao participa do pipeline local.
+- Retransmissao e RLE ainda nao estao implementadas; FEC e Reed-Solomon estao
+  disponiveis somente no modo experimental opt-in local.
 - UDP local nao representa ainda perdas ou latencia de radio por padrao.
 - A simulacao de perda e corrupcao permanece disponivel no componente de canal.
 - O visualizador depende de um ambiente grafico; use `--output` em ambientes sem GUI.
