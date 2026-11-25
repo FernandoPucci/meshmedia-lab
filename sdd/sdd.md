@@ -5,7 +5,7 @@
 - **Abordagem:** Specification-Driven Development (SDD)
 - **Objetivo:** Desenvolver um protocolo eficiente para transmissão de imagens e, futuramente, áudio através de redes MeshCore/LoRa.
 - **Nome do protocolo:** MM1 (MeshMedia v1)
-- **Revisão do SDD:** 0.9.1-draft
+- **Revisão do SDD:** 0.9.2-draft
 - **Versão da implementação de referência:** 0.1.0
 - **Versão do protocolo binário:** 1
 - **Conformidade:** Parcial
@@ -1759,7 +1759,7 @@ Após validação, o protocolo poderá ser adaptado para MeshCore, incluindo eve
 # 29. Aplicação web browser-only TX/RX — arquitetura-alvo
 
 **Status:** objetivo arquitetural com execução incremental; a primeira PoC
-BLE/texto é uma entrega separada da futura transmissão de imagens MM1.
+serial/texto é uma entrega separada da futura transmissão de imagens MM1.
 **Rastreabilidade:** [Issue #39 — Aplicação web local para transmissão e recepção de imagens MM1 via MeshCore](https://github.com/FernandoPucci/meshmedia-lab/issues/39).
 
 O objetivo de produto do MeshMedia Lab é oferecer uma aplicação web estática,
@@ -1768,15 +1768,16 @@ imagens MM1 sem modificar inicialmente o firmware MeshCore da Heltec V3 nem o
 aplicativo oficial.
 
 Duas estações independentes participam do fluxo. Cada uma abre a mesma URL em
-seu próprio navegador e conecta uma Heltec V3 por Bluetooth Low Energy usando o
-firmware MeshCore Companion. Uma instância pode atuar como transmissor (TX) e a
-outra como receptor (RX).
+seu próprio navegador e conecta uma Heltec V3 por USB usando o firmware
+MeshCore Companion compatível. Uma instância pode atuar como transmissor (TX) e
+a outra como receptor (RX).
 
 ## 29.1 Estação transmissora
 
 A interface TX deverá permitir:
 
-1. Solicitar a conexão BLE e selecionar o MeshCore Companion da Heltec V3.
+1. Solicitar acesso Web Serial e selecionar a porta USB do MeshCore Companion
+   da Heltec V3.
 2. Carregar uma imagem local e apresentar uma pré-visualização.
 3. Selecionar dimensões de saída, inicialmente dentro do limite vigente de
    128 x 128 pixels (por exemplo, 32 x 32 ou 64 x 64).
@@ -1801,7 +1802,8 @@ transporte MeshCore.
 
 A interface RX deverá permitir:
 
-1. Solicitar a conexão BLE e selecionar o MeshCore Companion da Heltec V3 receptora.
+1. Solicitar acesso Web Serial e selecionar a porta USB do MeshCore Companion
+   da Heltec V3 receptora.
 2. Monitorar mensagens recebidas no canal privado configurado.
 3. Identificar pacotes MM1 e validar integridade antes da reassemblagem.
 4. Reassemblar fragmentos e decodificar a imagem usando os metadados recebidos,
@@ -1814,8 +1816,8 @@ A interface RX deverá permitir:
 
 A aplicação será uma **WebApp estática, browser-only**, publicada em GitHub
 Pages (ou hospedagem estática HTTPS equivalente). Cada estação abre a mesma URL
-em seu próprio navegador e conecta diretamente sua Heltec V3 por Bluetooth
-Low Energy (BLE), usando o firmware MeshCore Companion existente.
+em seu próprio navegador e conecta diretamente sua Heltec V3 por USB usando a
+Web Serial API e o firmware MeshCore Companion compatível com o protocolo USB.
 
 Não haverá backend, servidor localhost, processo Python instalado, Docker,
 clone do repositório ou serviço auxiliar na máquina do usuário. O navegador
@@ -1826,19 +1828,19 @@ flowchart LR
     subgraph TX["Estação TX — navegador"]
         TUI["WebApp hospedada<br/>upload, preview e parâmetros"]
         TCORE["Runtime Python no browser<br/>codec + protocolo MM1"]
-        TBLE["Adaptador BLE<br/>MeshCore Companion"]
-        TUI --> TCORE --> TBLE
+        TSERIAL["Adaptador Web Serial/USB<br/>MeshCore Companion"]
+        TUI --> TCORE --> TSERIAL
     end
     subgraph RADIO["Rede MeshCore"]
         CH["Canal/grupo privado<br/>criptografia MeshCore"]
     end
     subgraph RX["Estação RX — navegador"]
-        RBLE["Adaptador BLE<br/>MeshCore Companion"]
+        RSERIAL["Adaptador Web Serial/USB<br/>MeshCore Companion"]
         RCORE["Runtime Python no browser<br/>MM1 + reassemblagem + codec"]
         RUI["WebApp hospedada<br/>progresso e imagem reconstruída"]
-        RBLE --> RCORE --> RUI
+        RSERIAL --> RCORE --> RUI
     end
-    TBLE <--> CH <--> RBLE
+    TSERIAL <--> CH <--> RSERIAL
 ```
 
 ### 29.3.1 Reutilização obrigatória do codec existente
@@ -1880,24 +1882,26 @@ testes e vetores atuais permanecem como referência de conformidade.
   enviados ao GitHub ou a um servidor remoto.
 - Cada estação opera de forma independente: uma aba/navegador conectado ao
   Companion transmissor e outra estação conectada ao Companion receptor.
-- A permissão BLE deve ser solicitada por ação explícita do usuário, com
-  indicação clara do dispositivo selecionado, estado da conexão e opção de
-  desconectar/reconectar.
+- A permissão de acesso à porta serial deve ser solicitada por ação explícita
+  do usuário, com indicação clara da porta selecionada, estado da conexão e
+  opção de desconectar/reconectar.
 
-### 29.3.3 Integração MeshCore Companion por BLE
+### 29.3.3 Integração MeshCore Companion por Web Serial/USB
 
-O caminho primário será **Web Bluetooth API** com o firmware MeshCore Companion
-Bluetooth já utilizado nas placas. Não trocar o firmware para USB como
-premissa da WebApp.
+O caminho primário desta PoC será a **Web Serial API** com uma conexão USB
+exposta pelo firmware MeshCore Companion compatível com o protocolo serial do
+Companion, normalmente a 115200 baud. A aplicação não usará `serialport` nem
+exigirá backend local.
 
-A biblioteca JavaScript meshcore.js deverá ser avaliada como candidata a
-fornecer a conexão BLE e as operações do Companion, evitando reimplementar o
-protocolo de comunicação do dispositivo. A API, os comandos necessários para
-dados binários de grupo, notificações, reconexão e licença devem ser verificados
-em uma prova de conceito antes de fixar a dependência.
+A biblioteca JavaScript `meshcore.js` fornece `WebSerialConnection` e será
+usada como candidata para evitar reimplementar o enquadramento serial e os
+comandos do Companion. A API, a licença, a abertura da porta, as notificações,
+a reconexão e as operações de dados devem ser verificadas com o firmware e o
+hardware identificados.
 
-- O adaptador BLE será novo e ficará na camada de transporte/adaptação da
-  aplicação web; não deve alterar codec nem wire format MM1.
+- O adaptador Web Serial/USB será novo e ficará na camada de
+  transporte/adaptação da aplicação web; não deve alterar codec nem wire
+  format MM1.
 - O canal/grupo privado e a criptografia permanecem sob responsabilidade do
   MeshCore Companion.
 - A aplicação deverá usar a operação de dados binários de grupo adequada ao
@@ -1905,24 +1909,24 @@ em uma prova de conceito antes de fixar a dependência.
   como mensagens de texto.
 - Limites de payload devem considerar o envelope real do Companion/MeshCore,
   inclusive overhead, e não somente o limite de fragmentação MM1.
-- USB/Web Serial pode ser considerado posteriormente como adaptador
-  alternativo, sem modificar o codec ou o núcleo MM1.
+- Web Bluetooth pode ser reavaliado posteriormente como adaptador alternativo,
+  sem modificar o codec ou o núcleo MM1.
 
 ### 29.3.4 Compatibilidade de navegadores
 
 A primeira plataforma-alvo será navegador desktop baseado em Chromium
-(Chrome/Edge) com suporte efetivo a Web Bluetooth e contexto seguro HTTPS.
-Web Bluetooth não é suportado de forma uniforme entre navegadores e sistemas
+(Chrome/Edge) com suporte efetivo à Web Serial API e contexto seguro HTTPS.
+Web Serial não é suportado de forma uniforme entre navegadores e sistemas
 operacionais.
 
-A WebApp deverá detectar a disponibilidade de navigator.bluetooth e
+A WebApp deverá detectar a disponibilidade de `navigator.serial` e
 apresentar instruções claras quando o navegador ou a plataforma não oferecer
 suporte. O comportamento no Linux deve ser validado cedo, pois pode depender
-da versão/build do Chromium e de configuração do ambiente Bluetooth.
+da versão/build do Chromium e da configuração de permissões da porta USB.
 
 Não declarar compatibilidade ampla antes de testes em sistemas e navegadores
 identificados. Firefox e Safari não devem ser anunciados como suportados para
-o caminho BLE enquanto não houver um adaptador alternativo validado.
+o caminho Web Serial enquanto não houver um adaptador alternativo validado.
 
 ## 29.4 Canal privado e material criptográfico
 
@@ -1942,8 +1946,8 @@ substituir o material criptográfico do MeshCore.
 ## 29.5 Restrições e dependências
 
 - A primeira entrega técnica deve ser uma prova de conceito mínima da WebApp
-  estática em HTTPS: detectar Web Bluetooth, solicitar seleção do Companion,
-  conectar, ler informações básicas, selecionar um canal e demonstrar
+  estática em HTTPS: detectar Web Serial, solicitar seleção da porta USB do
+  Companion, conectar, ler informações básicas, selecionar um canal e demonstrar
   envio/recepção de uma mensagem de texto comum compatível com o firmware. Essa
   mensagem valida somente a comunicação do Companion; não transporta bytes MM1
   nem substitui a validação do transporte binário. Não começar pela interface
@@ -1951,7 +1955,7 @@ substituir o material criptográfico do MeshCore.
 - Em uma etapa posterior, a execução do codec Python existente no navegador
   via Pyodide/WebAssembly deve ser comprovada sem modificar seus arquivos, APIs
   ou testes. Se necessário, validar a execução do pacote/protocolo MM1 existente
-  no mesmo runtime. Essa etapa não bloqueia o aceite inicial de BLE e texto.
+  no mesmo runtime. Essa etapa não bloqueia o aceite inicial de serial e texto.
 - A escolha de meshcore.js, Pyodide e bundler deverá ser confirmada por
   protótipo, documentação upstream, compatibilidade, licença e tamanho/carga
   inicial. Não assumir que uma biblioteca oferece operações que ainda não
@@ -1967,9 +1971,9 @@ substituir o material criptográfico do MeshCore.
 - A integração FEC/Reed-Solomon existe no pipeline local como extensão opt-in,
   mas não deve ser habilitada por padrão sem decisão específica. ACK/NACK,
   retransmissão de aplicação e transmissão progressiva continuam indisponíveis.
-- Não customizar inicialmente firmware MeshCore nem o aplicativo oficial. USB
-  pode ser avaliado como alternativa de conectividade se BLE não for viável,
-  mas não é requisito inicial.
+- Não customizar inicialmente firmware MeshCore nem o aplicativo oficial. BLE
+  pode ser avaliado como alternativa de conectividade se Web Serial não for
+  viável, mas não é requisito inicial.
 - Tiling acima dos limites atuais dos codecs e refinamento progressivo ficam
   fora do escopo inicial.
 
@@ -2007,11 +2011,12 @@ mas nao reduzem silenciosamente a matriz.
 
 ## 29.6 Critérios de conclusão
 
-### 29.6.1 PoC inicial de BLE e texto
+### 29.6.1 PoC inicial de serial e texto
 
 O primeiro aceite será demonstrado quando uma WebApp estática publicada em
 HTTPS, sem instalação ou servidor na máquina do usuário, puder detectar o
-suporte do navegador, conectar por BLE ao MeshCore Companion, selecionar/usar
+suporte do navegador, conectar por Web Serial/USB ao MeshCore Companion,
+selecionar/usar
 um canal e enviar uma mensagem de texto comum que seja recebida por uma segunda
 estação MeshCore no mesmo canal. O teste deve registrar navegador, sistema
 operacional, firmware, placa, biblioteca e resultado. Nenhum resultado desta
@@ -2021,8 +2026,8 @@ transporte binário.
 ### 29.6.2 Objetivo completo de imagens
 
 O objetivo completo será demonstrado quando duas instâncias independentes,
-publicadas pela mesma WebApp e conectadas por BLE a duas Heltec V3 com firmware
-MeshCore Companion original, puderem transmitir uma imagem MM1 por um canal
+publicadas pela mesma WebApp e conectadas por Web Serial/USB a duas Heltec V3
+com firmware MeshCore Companion compatível, puderem transmitir uma imagem MM1 por um canal
 privado e a estação RX reconstruir e exibir a imagem na interface web. O ensaio
 deverá registrar configuração, quantidade de mensagens, bytes, tempos, falhas e
 limitações observadas, separando claramente medições de rádio real de

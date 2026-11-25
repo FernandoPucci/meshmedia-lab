@@ -10,7 +10,7 @@ mas esta matriz e a referencia para distinguir proposta, plano e implementacao.
 |---|---|
 | Versao do software | `0.1.0` |
 | Versao do protocolo binario | `1` |
-| Revisao do SDD | `0.9.1-draft` |
+| Revisao do SDD | `0.9.2-draft` |
 | Conformidade | Parcial |
 | Ultima revisao | 2026-11-25 |
 
@@ -69,7 +69,7 @@ que a capacidade existe.
 | Harness RS-only | Issue #24 | Isolado, sem MM1 v1 | Implementado | `benchmarks/issue24/strategies.py`, sem `Packet` ou CRC |
 | Metricas de mensagens e conclusao | Issue #24 | Especificado | Implementado | `benchmarks/issue24/runner.py`, JSON/CSV e testes |
 | Comparacao visual Issue #24 | Issue #24 | Especificado | Implementado | `benchmarks/issue24/viewer.py`, viewer local com nearest-neighbor |
-| WebApp browser-only TX/RX | SDD seção 29 / Issue #39 | PoC BLE/texto definida | Parcial | `web/` com página estática, detecção Web Bluetooth, conexão Companion, canais e mensagens de texto; sem hardware validado, codec browser, MM1 ou transporte binário |
+| WebApp browser-only TX/RX | SDD seção 29 / Issue #39 | PoC serial/texto definida | Parcial | `web/` com página estática, detecção Web Serial, conexão Companion USB, canais e mensagens de texto; sem hardware validado, codec browser, MM1 ou transporte binário |
 
 ## Comportamento atual
 
@@ -223,8 +223,8 @@ protocolo. Ela deve atualizar a revisao do SDD ou o changelog documental.
 
 A WebApp será estática e browser-only, hospedada em GitHub Pages/HTTPS. Não
 haverá backend, servidor localhost, instalação ou processo auxiliar na máquina
-do usuário. O Companion Bluetooth atual permanece como caminho primário via
-Web Bluetooth.
+do usuário. O Companion USB/serial permanece como caminho primário desta PoC
+via Web Serial.
 
 **O codec Python já existente é reutilizado sem qualquer modificação.** A
 hipótese para executá-lo no navegador é Pyodide/WebAssembly, ainda pendente de
@@ -239,14 +239,14 @@ de grupo e o comportamento com o firmware/hardware identificado ainda precisam
 ser validados. Chrome/Edge desktop são o alvo inicial; Linux deve ser testado
 cedo. Não há integração MeshCore real comprovada nesta revisão.
 
-## Verificação da PoC browser-only BLE/texto (2026-11-25)
+## Verificação da PoC browser-only serial/texto (2026-11-25)
 
 A primeira entrega incremental foi implementada em `web/`, sem alterar o codec,
 o protocolo MM1 ou os transportes Python. A página estática:
 
-- verifica contexto seguro e `navigator.bluetooth`;
-- conecta ao Companion pela `WebBleConnection` da biblioteca
-  `@liamcottle/meshcore.js` `1.15.1`;
+- verifica contexto seguro e `navigator.serial`;
+- conecta ao Companion pela `WebSerialConnection` da biblioteca
+  `@liamcottle/meshcore.js` `1.15.1`, usando USB/serial a 115200 baud;
 - lista canais sem persistir ou exibir segredos;
 - envia mensagens de texto comuns e lê mensagens pendentes do canal;
 - trata cancelamento, erro, desconexão e reconexão na interface;
@@ -264,9 +264,9 @@ node --check src/support.js
 
 Resultado: 4 testes JavaScript passaram e os três módulos passaram na checagem
 de sintaxe. Um smoke test em Chrome headless carregou a página em `localhost`
-e confirmou o carregamento do módulo ESM externo, mas o modo headless não
-oferece Web Bluetooth.
+e confirmou o carregamento do módulo ESM externo; o modo headless não possui
+uma porta USB/serial real para validar a conexão.
 
-Ainda não há evidência de conexão BLE, seleção de canal ou entrega por rádio
-com duas placas MeshCore reais. A PoC não valida codec, Pyodide, MM1, FEC,
+Ainda não há evidência de conexão Web Serial, seleção de canal ou entrega por
+rádio com duas placas MeshCore reais. A PoC não valida codec, Pyodide, MM1, FEC,
 `GRP_DATA` ou transmissão binária.
