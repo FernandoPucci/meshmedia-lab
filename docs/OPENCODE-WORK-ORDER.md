@@ -205,38 +205,65 @@ Camadas de refinamento, prioridade de blocos e apresentacao parcial da imagem pe
 Nao modificar firmware MeshCore como primeiro caminho. Primeiro avaliar as interfaces seriais e recursos ja existentes.
 
 
-### 3.5 Aplicação web local TX/RX — objetivo de longo prazo
+### 3.5 WebApp browser-only TX/RX — objetivo de produto
 
 Rastreabilidade: [Issue #39](https://github.com/FernandoPucci/meshmedia-lab/issues/39)
 e SDD, seção 29.
 
-Construir uma aplicação web servida em localhost, com serviço/backend local
-responsável por gerenciar a porta serial da Heltec V3 e executar o pipeline
-MM1.
+Construir uma aplicação web estática publicada em GitHub Pages (HTTPS). O
+usuário abre um link no navegador e conecta diretamente ao MeshCore Companion
+por BLE. Não deve ser necessário instalar Python, Docker ou qualquer serviço,
+clonar o repositório, nem iniciar backend/servidor local.
 
-- A instância TX permite upload e pré-visualização da imagem, escolha de
-  dimensões, codec disponível, canal/grupo privado e parâmetros de payload.
-- A interface deve respeitar os limites reais de cada codec: grayscale até
-  128 x 128 e RGB332 até 64 x 64 no estado atual do projeto.
-- Antes do envio, calcula bytes codificados, overhead e quantidade estimada de
-  mensagens usando os limites reais do adaptador.
-- A instância RX recebe pela serial, valida e reassembla MM1, decodifica e
-  apresenta a imagem reconstruída na própria interface.
-- TX e RX são instâncias independentes, cada uma ligada à sua própria placa.
-- Preferir serial no backend local; não depender exclusivamente de Web Serial.
-- Manter criptografia/chaves sob responsabilidade do MeshCore e não registrar
-  material criptográfico. Qualquer entrada de chave na aplicação exige revisão
-  explícita de segurança e compatibilidade.
-- Preservar MM1 v1 e o firmware MeshCore original como primeira opção.
+**Regra inviolável: reutilizar o codec existente.** A WebApp deverá executar e
+consumir a implementação Python já existente em src/meshmedia_lab/codec/,
+sem reescrever, portar, alterar APIs, ajustar algoritmos ou duplicar os codecs.
+Pyodide/WebAssembly é a hipótese inicial para executar o Python no navegador.
+A prova de conceito deve comprovar essa execução com os testes/vetores atuais.
+Se não for possível sem modificar o codec, parar e apresentar alternativas
+para decisão humana. Adaptadores, wrappers e UI novos devem ficar fora dos
+módulos existentes de codec.
 
-**Dependências:** concluir e validar as tarefas de bancada/serial e adaptador
-MeshCore da Etapa E (#30–#35). Não iniciar a interface como substituto dessas
-validações.
+- Frontend browser-only para upload, preview, dimensões, codec, estimativas,
+  progresso e imagem recebida.
+- Avaliar meshcore.js para conexão Web Bluetooth com o Companion original;
+  confirmar API, licença, notificações e envio de dados binários antes de
+  fixar dependência.
+- Manter firmware Companion Bluetooth como caminho primário. USB/Web Serial é
+  alternativa futura, não pré-requisito.
+- Processar imagem, codec, preparação MM1, recepção e decodificação localmente
+  no navegador. GitHub Pages entrega apenas assets estáticos.
+- Duas estações independentes abrem a mesma aplicação hospedada e conectam
+  cada uma seu próprio Companion.
+- Chrome/Edge desktop com HTTPS e Web Bluetooth é a plataforma inicial.
+  Detectar suporte ausente; validar Linux cedo e não anunciar Firefox/Safari
+  sem adaptador alternativo comprovado.
+- Preservar wire format MM1 v1, o codec e os testes existentes. Respeitar os
+  limites atuais: grayscale 128 x 128 e RGB332 64 x 64.
+- Manter criptografia e chaves sob responsabilidade do MeshCore. Não registrar
+  material criptográfico.
+- FEC continua opt-in; ACK/NACK, retransmissão de aplicação e transmissão
+  progressiva não devem ser apresentados como disponíveis.
 
-**Estado:** backlog arquitetural; não implementar nesta rodada. FEC e
-Reed-Solomon ja aparecem como opcoes porque foram implementados nas Issues
-#20–#22. ACK/NACK e transmissão progressiva continuam indisponiveis.
+**Ordem de execução recomendada:**
+1. Prova de conceito estática em GitHub Pages/HTTPS e detecção Web Bluetooth.
+2. Conexão BLE ao Companion e leitura de informações básicas.
+3. Envio/recepção de mensagem de teste pelo mecanismo binário de grupo
+   validado para o firmware, sem usar mensagens de texto para bytes MM1.
+4. Prova de execução do codec Python existente via Pyodide/WebAssembly, sem
+   alterar os arquivos do codec; conferir os vetores/testes de referência.
+5. Adaptador browser BLE para o pipeline MM1 existente e validação do limite
+   real de payload.
+6. Só então evoluir para UI TX/RX de imagens e ensaio ponta a ponta com duas
+   Heltec V3.
 
+**Dependências:** a prova de conceito pode começar antes da conclusão de toda a
+Etapa E, pois serve para validar riscos técnicos de navegador e BLE. A
+transmissão real de imagens continua condicionada à validação do transporte,
+do payload binário de grupo e do ensaio com duas placas. A WebApp não substitui
+essas validações.
+
+**Estado:** backlog arquitetural; não implementado.
 ---
 
 ## 4. Regras de engenharia para o OpenCode
